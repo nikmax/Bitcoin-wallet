@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card danger">
+  <h1>RPC-Fehler</h1>
+  <p>{{ error }}</p>
+  {% if code %}<p><strong>Code:</strong> {{ code }}</p>{% endif %}
+  {% if details %}<pre>{{ details | tojson(indent=2) }}</pre>{% endif %}
+</section>
+{% endblock %}

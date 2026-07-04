@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ settings.app_title }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div><strong>{{ settings.app_title }}</strong></div>
+  <nav>
+    <a href="/">Dashboard</a>
+    <a href="/wallet">Wallet</a>
+    <a href="/send">Senden</a>
+    <a href="/mempool">Mempool</a>
+    <a href="/block">Blöcke</a>
+  </nav>
+</header>
+<main class="container">
+  <div class="warning">{{ warning }}</div>
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

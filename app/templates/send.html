@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Senden</h1>
+<section class="card danger"><strong>Warnung:</strong> Nur für deine private historische Mainnet-Fork / Experimente. Prüfe Adresse, Betrag und Chain-Kontext genau.</section>
+{% if form_error %}<section class="card danger">{{ form_error }}</section>{% endif %}
+{% if txid %}<section class="card ok"><h2>Gesendet</h2><p>TXID:</p><div class="mono wrap">{{ txid }}</div></section>{% endif %}
+<section class="card">
+  <h2>Preview</h2>
+  <form method="post" action="/send/preview">
+    <label>Zieladresse <input required name="address" value="{{ preview.address if preview }}"></label>
+    <label>Betrag BTC <input required name="amount" type="number" step="0.00000001" value="{{ preview.amount if preview }}"></label>
+    <label>Fee-Rate sat/vB optional <input name="fee_rate" type="number" step="0.1" value="{{ preview.fee_rate if preview }}"></label>
+    <button>Dry-Run / Preview</button>
+  </form>
+</section>
+{% if preview %}
+<section class="card">
+  <h2>Bitte bestätigen</h2>
+  <dl><dt>Ziel</dt><dd class="mono wrap">{{ preview.address }}</dd><dt>Betrag</dt><dd>{{ preview.amount }} BTC</dd><dt>Fee-Rate</dt><dd>{{ preview.fee_rate or 'Core Default' }}</dd></dl>
+  <p>Verfügbare Balance laut getbalances:</p><pre>{{ preview.balances | tojson(indent=2) }}</pre>
+  <form method="post" action="/send/confirm">
+    <input type="hidden" name="address" value="{{ preview.address }}">
+    <input type="hidden" name="amount" value="{{ preview.amount }}">
+    <input type="hidden" name="fee_rate" value="{{ preview.fee_rate }}">
+    <button class="dangerbtn">Jetzt sendtoaddress ausführen</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

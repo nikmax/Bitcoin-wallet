@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Block-Explorer light</h1>
+<section class="card"><form method="get" action="/block"><label>Höhe oder Blockhash <input name="q" value="{{ q }}" placeholder="z. B. 0 oder 000000..."></label><button>Suchen</button></form></section>
+{% if lookup_error %}<section class="card danger">{{ lookup_error }}</section>{% endif %}
+{% if block %}
+<section class="card"><h2>Block {{ block.height }}</h2><dl><dt>Hash</dt><dd class="mono wrap">{{ block.hash }}</dd><dt>Bestätigungen</dt><dd>{{ block.confirmations }}</dd><dt>Zeit</dt><dd>{{ block.time }}</dd><dt>Merkle Root</dt><dd class="mono wrap">{{ block.merkleroot }}</dd><dt>TXs</dt><dd>{{ block.nTx }}</dd></dl></section>
+<section class="card"><h2>Transaktionen</h2>
+{% for tx in block.tx %}
+  <article class="tx {% if loop.first %}coinbase{% endif %}">
+    <h3>{% if loop.first %}Coinbase · {% endif %}<span class="mono wrap">{{ tx.txid }}</span></h3>
+    <div class="columns">
+      <div><h4>Inputs</h4><table><tr><th>Quelle</th><th>vout</th></tr>{% for vin in tx.vin %}<tr><td class="mono wrap">{% if vin.coinbase %}Coinbase: {{ vin.coinbase }}{% else %}{{ vin.txid }}{% endif %}</td><td>{{ vin.vout if vin.vout is defined else '-' }}</td></tr>{% endfor %}</table></div>
+      <div><h4>Outputs / UTXO-Kandidaten</h4><table><tr><th>n</th><th>BTC</th><th>Script/Adresse</th></tr>{% for vout in tx.vout %}<tr><td>{{ vout.n }}</td><td>{{ vout.value }}</td><td class="mono wrap">{% if vout.scriptPubKey.address is defined %}{{ vout.scriptPubKey.address }}{% elif vout.scriptPubKey.addresses is defined %}{{ vout.scriptPubKey.addresses|join(', ') }}{% else %}{{ vout.scriptPubKey.type }}{% endif %}</td></tr>{% endfor %}</table></div>
+    </div>
+  </article>
+{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

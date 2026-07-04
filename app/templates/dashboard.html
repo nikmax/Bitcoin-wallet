@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="grid">
+  <section class="card"><h2>Chain</h2><dl>
+    <dt>Blockhöhe</dt><dd>{{ chain.blocks }}</dd>
+    <dt>Best Block Hash</dt><dd class="mono wrap">{{ chain.bestblockhash }}</dd>
+    <dt>Difficulty</dt><dd>{{ chain.difficulty }}</dd>
+    <dt>Initial Block Download</dt><dd>{{ chain.initialblockdownload }}</dd>
+    <dt>Chain</dt><dd>{{ chain.chain }}</dd>
+  </dl></section>
+  <section class="card"><h2>Node</h2><dl>
+    <dt>Peers</dt><dd>{{ network.connections }}</dd>
+    <dt>Mempool TXs</dt><dd>{{ mempool.size }}</dd>
+    <dt>Mempool Bytes</dt><dd>{{ mempool.bytes }}</dd>
+  </dl></section>
+  <section class="card"><h2>Wallet</h2><dl>
+    <dt>Name</dt><dd>{{ wallet_info.walletname or settings.bitcoin_rpc_wallet or 'kein Wallet konfiguriert' }}</dd>
+    <dt>Trusted</dt><dd>{{ balances.mine.trusted if balances.mine is defined else '-' }}</dd>
+    <dt>Immature</dt><dd>{{ balances.mine.immature if balances.mine is defined else '-' }}</dd>
+    <dt>Pending</dt><dd>{{ balances.mine.untrusted_pending if balances.mine is defined else '-' }}</dd>
+  </dl></section>
+</div>
+{% endblock %}

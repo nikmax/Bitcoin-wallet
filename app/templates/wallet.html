@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Wallet</h1>
+{% if request.query_params.get('new_address') %}
+<section class="card ok"><strong>Neue Adresse:</strong><div class="mono wrap">{{ request.query_params.get('new_address') }}</div></section>
+{% endif %}
+<div class="grid">
+<section class="card"><h2>Balances</h2><pre>{{ balances | tojson(indent=2) }}</pre></section>
+<section class="card"><h2>Neue Adresse</h2><form method="post" action="/wallet/new-address"><label>Label <input name="label" placeholder="optional"></label><button>Adresse erzeugen</button></form></section>
+</div>
+<section class="card"><h2>Bekannte Adressen</h2><div class="tablewrap"><table><tr><th>Adresse</th><th>Label</th><th>Amount</th><th>Confs</th><th>TXIDs</th></tr>{% for a in addresses %}<tr><td class="mono wrap">{{ a.address }}</td><td>{{ a.label }}</td><td>{{ a.amount }}</td><td>{{ a.confirmations }}</td><td>{{ a.txids|length }}</td></tr>{% endfor %}</table></div></section>
+<section class="card"><h2>UTXOs / listunspent 0</h2><div class="tablewrap"><table><tr><th>TXID</th><th>vout</th><th>Adresse</th><th>Betrag</th><th>Confs</th><th>Spendable</th></tr>{% for u in unspent %}<tr><td class="mono wrap">{{ u.txid }}</td><td>{{ u.vout }}</td><td class="mono wrap">{{ u.address }}</td><td>{{ u.amount }}</td><td>{{ u.confirmations }}</td><td>{{ u.spendable }}</td></tr>{% endfor %}</table></div></section>
+<section class="card"><h2>Transaktionen</h2><div class="tablewrap"><table><tr><th>Zeit</th><th>Kategorie</th><th>Betrag</th><th>Confs</th><th>TXID</th><th>Hinweis</th></tr>{% for t in transactions %}<tr class="{% if t.generated %}coinbase{% endif %}"><td>{{ t.time }}</td><td>{{ t.category }}</td><td>{{ t.amount }}</td><td>{{ t.confirmations }}</td><td class="mono wrap">{{ t.txid }}</td><td>{% if t.generated %}Coinbase{% endif %}{% if t.confirmations is defined and t.confirmations < 101 and t.generated %} / immature möglich{% endif %}</td></tr>{% endfor %}</table></div></section>
+{% endblock %}

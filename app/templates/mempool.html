@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Mempool</h1>
+<div class="grid">
+<section class="card"><h2>Info</h2><pre>{{ info | tojson(indent=2) }}</pre></section>
+<section class="card"><h2>Transaktion suchen</h2><form method="get" action="/mempool"><label>TXID <input name="txid" value="{{ selected_txid or '' }}"></label><button>Anzeigen</button></form></section>
+</div>
+{% if tx %}<section class="card"><h2>TX {{ selected_txid }}</h2><pre>{{ tx | tojson(indent=2) }}</pre></section>{% endif %}
+<section class="card"><h2>Raw Mempool</h2><div class="tablewrap"><table><tr><th>TXID</th><th>Aktion</th></tr>{% for id in txids %}<tr><td class="mono wrap">{{ id }}</td><td><a href="/mempool?txid={{ id }}">anzeigen</a></td></tr>{% endfor %}</table></div></section>
+{% endblock %}
