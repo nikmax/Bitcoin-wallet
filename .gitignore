@@ -1,2 +1,17 @@
+
+# SQLite
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Konfiguration
 .env
 
+# Python
+app/__pycache__/
+*.pyc
+
+# Virtuelle Umgebungen
+.venv/
+venv/
