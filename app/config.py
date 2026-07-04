@@ -4,12 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print("RPC_HOST =", os.getenv("RPC_HOST"))
-
 
 class Settings:
-
-    #model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     bitcoin_rpc_scheme = 'http'
     bitcoin_rpc_timeout = default=15
@@ -25,6 +21,12 @@ class Settings:
 
     app_title = 'Private Bitcoin Core Wallet Frontend'
 
+    secret_key = os.getenv('SECRET_KEY', 'change-me-local-lab-secret')
+    database_path = os.getenv('DATABASE_PATH', str('data/wallet_lab.sqlite3'))
+
+    allow_registration = bool(os.getenv('ALLOW_REGISTRATION', True))
+    default_user = os.getenv('DEFAULT_USER', 'alice')
+    default_password = os.getenv('DEFAULT_PASSWORD', 'alice')
 
 @lru_cache
 def get_settings():

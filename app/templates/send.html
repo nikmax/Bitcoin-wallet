@@ -1,13 +1,18 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Senden</h1>
-<section class="card danger"><strong>Warnung:</strong> Nur für deine private historische Mainnet-Fork / Experimente. Prüfe Adresse, Betrag und Chain-Kontext genau.</section>
+<section class="card danger"><strong>Warnung:</strong> Du sendest aus deiner eigenen Core-Wallet <span class="mono">{{ user.wallet_name }}</span>. Bitcoin Core wählt UTXOs, signiert mit den privaten Schlüsseln dieser Wallet und broadcastet auf deiner privaten Chain.</section>
 {% if form_error %}<section class="card danger">{{ form_error }}</section>{% endif %}
 {% if txid %}<section class="card ok"><h2>Gesendet</h2><p>TXID:</p><div class="mono wrap">{{ txid }}</div></section>{% endif %}
 <section class="card">
+  <h2>Empfänger aus der App</h2>
+  <p class="muted">Tippe eine Adresse an, kopiere sie oder nutze den Send-Link auf der Nutzerseite.</p>
+  {% for u in users %}{% if u.username != user.username %}{% for a in u.addresses %}<div class="address-card"><strong>{{ u.username }}</strong><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }}</small></div>{% endfor %}{% endif %}{% endfor %}
+</section>
+<section class="card">
   <h2>Preview</h2>
   <form method="post" action="/send/preview">
-    <label>Zieladresse <input required name="address" value="{{ preview.address if preview }}"></label>
+    <label>Zieladresse <input required name="address" value="{{ preview.address if preview else request.query_params.get('address', '') }}"></label>
     <label>Betrag BTC <input required name="amount" type="number" step="0.00000001" value="{{ preview.amount if preview }}"></label>
     <label>Fee-Rate sat/vB optional <input name="fee_rate" type="number" step="0.1" value="{{ preview.fee_rate if preview }}"></label>
     <button>Dry-Run / Preview</button>
@@ -16,13 +21,13 @@
 {% if preview %}
 <section class="card">
   <h2>Bitte bestätigen</h2>
-  <dl><dt>Ziel</dt><dd class="mono wrap">{{ preview.address }}</dd><dt>Betrag</dt><dd>{{ preview.amount }} BTC</dd><dt>Fee-Rate</dt><dd>{{ preview.fee_rate or 'Core Default' }}</dd></dl>
+  <dl><dt>Von Wallet</dt><dd class="mono">{{ preview.from_wallet }}</dd><dt>Ziel</dt><dd class="mono wrap">{{ preview.address }}</dd><dt>Betrag</dt><dd>{{ preview.amount }} BTC</dd><dt>Fee-Rate</dt><dd>{{ preview.fee_rate or 'Core Default' }}</dd></dl>
   <p>Verfügbare Balance laut getbalances:</p><pre>{{ preview.balances | tojson(indent=2) }}</pre>
   <form method="post" action="/send/confirm">
     <input type="hidden" name="address" value="{{ preview.address }}">
     <input type="hidden" name="amount" value="{{ preview.amount }}">
     <input type="hidden" name="fee_rate" value="{{ preview.fee_rate }}">
-    <button class="dangerbtn">Jetzt sendtoaddress ausführen</button>
+    <button class="dangerbtn">Jetzt signieren und senden</button>
   </form>
 </section>
 {% endif %}

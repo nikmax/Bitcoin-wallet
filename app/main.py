@@ -6,32 +6,33 @@ from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
-from .auth import require_basic_auth
+from .auth import current_user, require_basic_auth, require_user
 from .config import get_settings
-from .rpc import BitcoinRPC, BitcoinRPCError, RPCConfig
+from .db import add_user_address, authenticate_user, create_user, init_db, list_public_users, list_user_addresses
+from .rpc import BitcoinRPCError
+from .wallets import ensure_wallet_loaded, export_private_key, node_rpc, wallet_rpc
 
 settings = get_settings()
-app = FastAPI(title=settings.app_title, dependencies=[Depends(require_basic_auth)])
+app = FastAPI(title=settings.app_title)
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, same_site='lax')
 app.mount('/static', StaticFiles(directory='app/static'), name='static')
 templates = Jinja2Templates(directory='app/templates')
 
 
-def rpc_client() -> BitcoinRPC:
-    s = get_settings()
-    return BitcoinRPC(RPCConfig(
-        scheme=s.bitcoin_rpc_scheme,
-        host=s.bitcoin_rpc_host,
-        port=s.bitcoin_rpc_port,
-        user=s.bitcoin_rpc_user,
-        password=s.bitcoin_rpc_password,
-        wallet=s.bitcoin_rpc_wallet,
-        timeout=s.bitcoin_rpc_timeout,
-    ))
+@app.on_event('startup')
+def startup() -> None:
+    init_db()
 
 
 def render(request: Request, template: str, context: dict[str, Any], status_code: int = 200) -> HTMLResponse:
-    base = {'request': request, 'settings': get_settings(), 'warning': 'Private Chain / Experimentell – nicht für produktiven Mainnet-Betrieb verwenden.'}
+    base = {
+        'request': request,
+        'settings': get_settings(),
+        'user': current_user(request),
+        'warning': 'Private Chain / Experimentell – nicht für produktiven Mainnet-Betrieb verwenden.',
+    }
     base.update(context)
     return templates.TemplateResponse(template, base, status_code=status_code)
 
@@ -40,15 +41,69 @@ def render_rpc_error(request: Request, exc: BitcoinRPCError) -> HTMLResponse:
     return render(request, 'error.html', {'error': str(exc), 'code': exc.code, 'details': exc.details}, 502)
 
 
-@app.get('/', response_class=HTMLResponse)
-def dashboard(request: Request):
-    rpc = rpc_client()
+def my_wallet(user: dict):
+    wallet_name = user['wallet_name']
+    ensure_wallet_loaded(wallet_name)
+    return wallet_rpc(wallet_name)
+
+
+@app.get('/login', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def login_page(request: Request):
+    return render(request, 'login.html', {'error': None})
+
+
+@app.post('/login', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    user = authenticate_user(username, password)
+    if not user:
+        return render(request, 'login.html', {'error': 'Benutzername oder Passwort falsch.'}, 401)
     try:
-        chain = rpc.get_blockchain_info()
-        network = rpc.get_network_info()
-        mempool = rpc.get_mempool_info()
-        balances = rpc.get_balances() if get_settings().bitcoin_rpc_wallet else {}
-        wallet_info = rpc.get_wallet_info() if get_settings().bitcoin_rpc_wallet else {}
+        ensure_wallet_loaded(user['wallet_name'])
+    except BitcoinRPCError as exc:
+        return render_rpc_error(request, exc)
+    request.session['user_id'] = user['id']
+    return RedirectResponse('/', status_code=303)
+
+
+@app.get('/register', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def register_page(request: Request):
+    if not get_settings().allow_registration:
+        return render(request, 'login.html', {'error': 'Registrierung ist deaktiviert.'}, 403)
+    return render(request, 'register.html', {'error': None})
+
+
+@app.post('/register', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def register(request: Request, username: str = Form(...), password: str = Form(...)):
+    if not get_settings().allow_registration:
+        return render(request, 'login.html', {'error': 'Registrierung ist deaktiviert.'}, 403)
+    try:
+        user = create_user(username, password)
+        ensure_wallet_loaded(user['wallet_name'])
+    except (ValueError, BitcoinRPCError) as exc:
+        tmpl = 'register.html' if isinstance(exc, ValueError) else 'error.html'
+        if isinstance(exc, BitcoinRPCError):
+            return render_rpc_error(request, exc)
+        return render(request, tmpl, {'error': str(exc)}, 400)
+    request.session['user_id'] = user['id']
+    return RedirectResponse('/', status_code=303)
+
+
+@app.post('/logout')
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse('/login', status_code=303)
+
+
+@app.get('/', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def dashboard(request: Request, user: dict = Depends(require_user)):
+    try:
+        nrpc = node_rpc()
+        wrpc = my_wallet(user)
+        chain = nrpc.get_blockchain_info()
+        network = nrpc.get_network_info()
+        mempool = nrpc.get_mempool_info()
+        balances = wrpc.get_balances()
+        wallet_info = wrpc.get_wallet_info()
     except BitcoinRPCError as exc:
         return render_rpc_error(request, exc)
     return render(request, 'dashboard.html', {
@@ -57,66 +112,81 @@ def dashboard(request: Request):
         'mempool': mempool,
         'balances': balances,
         'wallet_info': wallet_info,
+        'my_addresses': list_user_addresses(user['id']),
     })
 
 
-@app.get('/wallet', response_class=HTMLResponse)
-def wallet(request: Request):
-    rpc = rpc_client()
+@app.get('/wallet', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def wallet(request: Request, show_key: str | None = None, user: dict = Depends(require_user)):
     try:
-        balances = rpc.get_balances()
-        wallet_info = rpc.get_wallet_info()
-        addresses = rpc.list_received_by_address()
-        unspent = rpc.list_unspent()
-        transactions = rpc.list_transactions(100)
+        wrpc = my_wallet(user)
+        balances = wrpc.get_balances()
+        wallet_info = wrpc.get_wallet_info()
+        core_addresses = wrpc.list_received_by_address()
+        unspent = wrpc.list_unspent()
+        transactions = wrpc.list_transactions(100)
+        private_key = export_private_key(user['wallet_name'], show_key) if show_key else None
     except BitcoinRPCError as exc:
         return render_rpc_error(request, exc)
     return render(request, 'wallet.html', {
         'balances': balances,
         'wallet_info': wallet_info,
-        'addresses': addresses,
+        'addresses': core_addresses,
+        'my_addresses': list_user_addresses(user['id']),
         'unspent': unspent,
         'transactions': transactions,
+        'private_key_address': show_key,
+        'private_key': private_key,
     })
 
 
-@app.post('/wallet/new-address')
-def new_address(label: str = Form(default='')):
-    rpc = rpc_client()
-    address = rpc.get_new_address(label=label)
+@app.post('/wallet/new-address', dependencies=[Depends(require_basic_auth)])
+def new_address(request: Request, label: str = Form(default=''), user: dict = Depends(require_user)):
+    try:
+        wrpc = my_wallet(user)
+        final_label = label.strip() or f"{user['username']}"
+        address = wrpc.get_new_address(label=f"app:{user['username']}:{final_label}")
+        add_user_address(user['id'], address, final_label, user['wallet_name'])
+    except BitcoinRPCError as exc:
+        return render_rpc_error(request, exc)
     return RedirectResponse(f'/wallet?new_address={address}', status_code=303)
 
 
-@app.get('/send', response_class=HTMLResponse)
-def send_page(request: Request):
-    return render(request, 'send.html', {'preview': None, 'txid': None})
+@app.get('/users', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def users_page(request: Request, user: dict = Depends(require_user)):
+    return render(request, 'users.html', {'users': list_public_users()})
 
 
-@app.post('/send/preview', response_class=HTMLResponse)
-def send_preview(request: Request, address: str = Form(...), amount: float = Form(...), fee_rate: str = Form(default='')):
+@app.get('/send', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def send_page(request: Request, user: dict = Depends(require_user)):
+    return render(request, 'send.html', {'preview': None, 'txid': None, 'users': list_public_users()})
+
+
+@app.post('/send/preview', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def send_preview(request: Request, address: str = Form(...), amount: float = Form(...), fee_rate: str = Form(default=''), user: dict = Depends(require_user)):
     try:
-        balances = rpc_client().get_balances()
+        balances = my_wallet(user).get_balances()
     except BitcoinRPCError as exc:
         return render_rpc_error(request, exc)
-    preview = {'address': address, 'amount': amount, 'fee_rate': fee_rate.strip(), 'balances': balances}
-    return render(request, 'send.html', {'preview': preview, 'txid': None})
+    preview = {'address': address, 'amount': amount, 'fee_rate': fee_rate.strip(), 'balances': balances, 'from_wallet': user['wallet_name']}
+    return render(request, 'send.html', {'preview': preview, 'txid': None, 'users': list_public_users()})
 
 
-@app.post('/send/confirm', response_class=HTMLResponse)
-def send_confirm(request: Request, address: str = Form(...), amount: float = Form(...), fee_rate: str = Form(default='')):
+@app.post('/send/confirm', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def send_confirm(request: Request, address: str = Form(...), amount: float = Form(...), fee_rate: str = Form(default=''), user: dict = Depends(require_user)):
     try:
         fee = float(fee_rate) if fee_rate.strip() else None
-        txid = rpc_client().send_to_address(address, amount, fee)
+        txid = my_wallet(user).send_to_address(address, amount, fee)
     except (BitcoinRPCError, ValueError) as exc:
         if isinstance(exc, BitcoinRPCError):
             return render_rpc_error(request, exc)
-        return render(request, 'send.html', {'preview': None, 'txid': None, 'form_error': 'Fee-Rate ist keine gültige Zahl.'}, 400)
-    return render(request, 'send.html', {'preview': None, 'txid': txid})
+        return render(request, 'send.html', {'preview': None, 'txid': None, 'form_error': 'Fee-Rate ist keine gültige Zahl.', 'users': list_public_users()}, 400)
+    return render(request, 'send.html', {'preview': None, 'txid': txid, 'users': list_public_users()})
 
 
-@app.get('/mempool', response_class=HTMLResponse)
-def mempool(request: Request, txid: str | None = None):
-    rpc = rpc_client()
+@app.get('/mempool', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def mempool(request: Request, txid: str | None = None, user: dict = Depends(require_user)):
+    rpc = node_rpc()
     try:
         info = rpc.get_mempool_info()
         txids = rpc.get_raw_mempool(False)
@@ -126,13 +196,13 @@ def mempool(request: Request, txid: str | None = None):
     return render(request, 'mempool.html', {'info': info, 'txids': txids, 'selected_txid': txid, 'tx': tx})
 
 
-@app.get('/block', response_class=HTMLResponse)
-def block_page(request: Request, q: str | None = None):
+@app.get('/block', response_class=HTMLResponse, dependencies=[Depends(require_basic_auth)])
+def block_page(request: Request, q: str | None = None, user: dict = Depends(require_user)):
     block = None
     error = None
     if q:
         try:
-            rpc = rpc_client()
+            rpc = node_rpc()
             block_hash = rpc.get_block_hash(int(q)) if q.isdigit() else q
             block = rpc.get_block(block_hash, 2)
         except (BitcoinRPCError, ValueError) as exc:

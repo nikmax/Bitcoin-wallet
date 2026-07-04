@@ -1,24 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Dashboard</h1>
+<div class="mobile-grid">
+  <section class="card stat"><span>Blockhöhe</span><strong>{{ chain.blocks }}</strong></section>
+  <section class="card stat"><span>Peers</span><strong>{{ network.connections }}</strong></section>
+  <section class="card stat"><span>Mempool</span><strong>{{ mempool.size }}</strong></section>
+  <section class="card stat"><span>Verfügbar</span><strong>{{ balances.mine.trusted if balances.mine is defined else '-' }}</strong></section>
+</div>
 <div class="grid">
   <section class="card"><h2>Chain</h2><dl>
-    <dt>Blockhöhe</dt><dd>{{ chain.blocks }}</dd>
-    <dt>Best Block Hash</dt><dd class="mono wrap">{{ chain.bestblockhash }}</dd>
+    <dt>Best Block</dt><dd class="mono wrap">{{ chain.bestblockhash }}</dd>
     <dt>Difficulty</dt><dd>{{ chain.difficulty }}</dd>
-    <dt>Initial Block Download</dt><dd>{{ chain.initialblockdownload }}</dd>
+    <dt>IBD</dt><dd>{{ chain.initialblockdownload }}</dd>
     <dt>Chain</dt><dd>{{ chain.chain }}</dd>
   </dl></section>
-  <section class="card"><h2>Node</h2><dl>
-    <dt>Peers</dt><dd>{{ network.connections }}</dd>
-    <dt>Mempool TXs</dt><dd>{{ mempool.size }}</dd>
-    <dt>Mempool Bytes</dt><dd>{{ mempool.bytes }}</dd>
-  </dl></section>
-  <section class="card"><h2>Wallet</h2><dl>
-    <dt>Name</dt><dd>{{ wallet_info.walletname or settings.bitcoin_rpc_wallet or 'kein Wallet konfiguriert' }}</dd>
+  <section class="card"><h2>Meine Wallet</h2><dl>
+    <dt>Benutzer</dt><dd>{{ user.username }}</dd>
+    <dt>Core-Wallet</dt><dd class="mono">{{ wallet_info.walletname }}</dd>
     <dt>Trusted</dt><dd>{{ balances.mine.trusted if balances.mine is defined else '-' }}</dd>
     <dt>Immature</dt><dd>{{ balances.mine.immature if balances.mine is defined else '-' }}</dd>
     <dt>Pending</dt><dd>{{ balances.mine.untrusted_pending if balances.mine is defined else '-' }}</dd>
   </dl></section>
 </div>
+<section class="card">
+  <h2>Meine letzten Empfangsadressen</h2>
+  {% if my_addresses %}
+    {% for a in my_addresses[:3] %}<div class="address-card"><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }} · Wallet {{ a.wallet_name or wallet_info.walletname }}</small></div>{% endfor %}
+  {% else %}
+    <p class="muted">Du hast noch keine eigene Adresse. Erzeuge eine in deiner Wallet.</p>
+  {% endif %}
+  <a class="buttonlink" href="/wallet">Zur Wallet</a>
+</section>
 {% endblock %}

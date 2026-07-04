@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Nutzer & Adressen</h1>
+<p class="muted">Jeder App-Nutzer hat genau eine eigene Bitcoin-Core-Wallet. Hier siehst du die öffentlichen Empfangsadressen zum Spielen.</p>
+{% for u in users %}
+<section class="card">
+  <h2>👤 {{ u.username }} {% if u.username == user.username %}<span class="badge">du</span>{% endif %}</h2>
+  <p class="muted">Wallet: <span class="mono">{{ u.wallet_name }}</span></p>
+  {% if u.addresses %}
+    {% for a in u.addresses %}<div class="address-card"><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }} · {{ a.created_at }}</small>{% if u.username != user.username %}<a class="buttonlink small" href="/send?address={{ a.address }}">An diese Adresse senden</a>{% endif %}</div>{% endfor %}
+  {% else %}<p class="muted">Noch keine Adresse.</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

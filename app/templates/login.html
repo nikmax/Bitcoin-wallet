@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero card">
+  <h1>Einloggen</h1>
+  <p>Lokaler Spielzugang für dein privates Bitcoin-Core-Lab.</p>
+  {% if error %}<div class="danger soft">{{ error }}</div>{% endif %}
+  <form method="post" action="/login" class="stack">
+    <label>Benutzername <input required name="username" autocomplete="username"></label>
+    <label>Passwort <input required name="password" type="password" autocomplete="current-password"></label>
+    <button class="primary">Einloggen</button>
+  </form>
+  {% if settings.allow_registration %}<p class="muted">Noch kein Nutzer? <a href="/register">Neuen Spielnutzer erstellen</a></p>{% endif %}
+</section>
+{% endblock %}
