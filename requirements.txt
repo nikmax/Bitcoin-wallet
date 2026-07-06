@@ -9,3 +9,6 @@ itsdangerous
 base58
 ecdsa
 mnemonic
+qrcode
+qrcode[pil]
+Pillow
