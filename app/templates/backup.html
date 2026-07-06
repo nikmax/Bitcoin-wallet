@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Konten / Backup / Import</h1>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+
+<section class="card">
+  <h2>Aktives Konto</h2>
+  <form method="post" action="/accounts/select" class="inlineform">
+    <label>Konto
+      <select name="account_id">
+        {% for a in accounts %}
+          <option value="{{ a.id }}" {% if account and a.id==account.id %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button>Wechseln</button>
+  </form>
+  <p class="muted">Senden, Empfangen, UTXOs und Backup beziehen sich immer auf das aktive Konto.</p>
+</section>
+
+<section class="card">
+  <h2>Neues Konto erzeugen</h2>
+  <form method="post" action="/accounts/create">
+    <label>Name<input name="name" value="Neues Konto" required></label>
+    <button>Konto erstellen</button>
+  </form>
+</section>
+
+<section class="card warning">
+  <h2>Backup: {{ account.name }}</h2>
+  <p>Nur für deine private Labor-Chain. Wer diese Wörter kennt, besitzt dieses Konto.</p>
+  <p class="seed">{{ account.mnemonic }}</p>
+</section>
+
+<section class="card">
+  <h2>BIP39-Konto importieren</h2>
+  <p class="muted">Import fügt ein neues Konto hinzu. Bestehende Konten werden nicht überschrieben.</p>
+  <form method="post" action="/backup/import">
+    <label>Kontoname<input name="name" value="Importiertes Konto" required></label>
+    <label>Mnemonic<textarea name="mnemonic" rows="4" required></textarea></label>
+    <label>Scan ab Blockhöhe<input name="scan_from" type="number" value="0"></label>
+    <label>Max. Blöcke im ersten Lauf<input name="scan_limit" type="number" value="1000"></label>
+    <label class="check"><input type="checkbox" name="scan_now" value="1" checked> Nach Import direkt scannen</label>
+    <button>Als neues Konto importieren</button>
+  </form>
+  {% if import_result %}
+    <h3>Import-Scan</h3>
+    <pre>{{ import_result }}</pre>
+  {% endif %}
+</section>
+
+<section class="card dangerzone">
+  <h2>Konto löschen</h2>
+  <p class="warn">Löscht nur dieses Konto aus der App-Datenbank. Ohne Backup ist es verloren.</p>
+  <form method="post" action="/accounts/delete">
+    <input type="hidden" name="account_id" value="{{ account.id }}">
+    <button class="danger">Aktives Konto löschen</button>
+  </form>
+</section>
+{% endblock %}

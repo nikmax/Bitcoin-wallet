@@ -1,53 +1,161 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero-card warning">
-  <p class="eyebrow">Senden</p>
-  <h1>Raw Transaction</h1>
-  <p>v0.3 baut und signiert Legacy-P2PKH-Transaktionen in der App. Bitcoin Core broadcastet nur per <code>sendrawtransaction</code>.</p>
-</section>
+<h1>Senden</h1>
+<p class="muted">Standardmäßig wählt die Wallet passende Coins automatisch. Coin-Control ist optional für Experimente.</p>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
 
-<section class="card">
-  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
-  <form method="post" action="/wallet/send/preview" class="stack-form">
-    <label>Zieladresse
-      <input name="destination" required value="{{ preview.destination if preview else '' }}" placeholder="1..." />
-    </label>
-    <label>Betrag BTC
-      <input name="amount" required inputmode="decimal" value="{{ preview.amount_btc if preview else '' }}" />
-    </label>
-    <label>Fee in sats
-      <input name="fee_sats" required inputmode="numeric" value="{{ preview.fee_sats if preview else 1000 }}" />
-    </label>
-    <button>Preview erstellen</button>
+<section class="card send-card">
+  <form method="post" action="/send/preview" id="sendForm">
+    <div class="form-grid">
+      <label>Zieladresse
+        <input name="address" required placeholder="Bitcoin-Adresse" value="{{ preview.address if preview else '' }}">
+      </label>
+      <label>Betrag BTC
+        <input name="amount" required inputmode="decimal" placeholder="0.00000000" value="{{ preview.amount if preview else '' }}">
+      </label>
+      <label>Fee sats
+        <input name="fee_sats" type="number" inputmode="numeric" placeholder="1000" value="{{ preview.fee if preview else '' }}">
+      </label>
+    </div>
+
+    <div class="summary-card soft">
+      <div>
+        <span class="muted">Verfügbare Coins</span>
+        <strong>{{ utxos|length }}</strong>
+      </div>
+      <div>
+        <span class="muted">Modus</span>
+        <strong id="modeLabel">Automatisch</strong>
+      </div>
+    </div>
+
+    <h2>Coin-Auswahl</h2>
+    <div class="choice-stack">
+      <label class="choice">
+        <input type="radio" name="coin_mode" value="auto" checked>
+        <span><strong>Automatische Coin-Auswahl</strong><small>Empfohlen. Die Wallet nimmt genug passende UTXOs.</small></span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="coin_mode" value="manual">
+        <span><strong>Eigene Coins auswählen</strong><small>Expertenmodus: Du bestimmst die Inputs selbst.</small></span>
+      </label>
+    </div>
+
+    <div id="coinControl" class="expert-panel hidden">
+      <h3>Von welchen Coins senden?</h3>
+      {% if utxos %}
+        <div class="coin-list">
+        {% for u in utxos %}
+          <label class="coin-card">
+            <input type="checkbox" name="selected_utxos" value="{{ u.key }}" {% if preview and u.key in preview.selected_utxos %}checked{% endif %}>
+            <span class="coin-main">
+              <strong>{{ '%.8f'|format(u.btc) }} BTC</strong>
+              <small>{{ 'Empfang' if u.branch == 0 else 'Wechselgeld' }} #{{ u.idx if u.idx is not none else '?' }}</small>
+              <code>{{ u.address[:8] }}…{{ u.address[-8:] }}</code>
+            </span>
+            <details>
+              <summary>Details</summary>
+              <dl>
+                <dt>Adresse</dt><dd><code>{{ u.address }}</code></dd>
+                <dt>Pfad</dt><dd><code>{{ u.path }}</code></dd>
+                <dt>Outpoint</dt><dd><code>{{ u.txid }}:{{ u.vout }}</code></dd>
+              </dl>
+            </details>
+          </label>
+        {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Keine lokalen UTXOs vorhanden. Erst synchronisieren oder Coins empfangen.</p>
+      {% endif %}
+    </div>
+
+    <h2>Wechselgeld</h2>
+    <div class="choice-stack">
+      <label class="choice">
+        <input type="radio" name="change_mode" value="new" {% if not preview or preview.change_mode == 'new' %}checked{% endif %}>
+        <span><strong>Neue Wechseladresse erzeugen</strong><small>Empfohlen. Der Rest geht zurück in dein aktives Konto.</small></span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="change_mode" value="existing" {% if preview and preview.change_mode == 'existing' %}checked{% endif %}>
+        <span><strong>Vorhandene eigene Adresse verwenden</strong><small>Du bestimmst selbst, wohin der Rest geht.</small></span>
+      </label>
+      <div id="existingChange" class="nested hidden">
+        <label>Adresse für Wechselgeld
+          <select name="change_address">
+            <option value="">Adresse auswählen</option>
+            {% for a in change_addresses %}
+              <option value="{{ a.address }}" {% if preview and preview.change_address == a.address %}selected{% endif %}>
+                {{ 'Empfang' if a.branch == 0 else 'Change' }} #{{ a.idx }} — {{ a.address[:8] }}…{{ a.address[-8:] }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label class="choice danger-choice">
+        <input type="radio" name="change_mode" value="none" {% if preview and preview.change_mode == 'none' %}checked{% endif %}>
+        <span><strong>Kein Wechselgeld</strong><small>Rest als zusätzliche Fee verbrennen. Nur für Experimente.</small></span>
+      </label>
+    </div>
+
+    <button class="primary">Vorschau erzeugen</button>
   </form>
 </section>
 
 {% if preview %}
-<section class="card">
+<section class="card preview-card">
   <h2>Vorschau</h2>
-  <dl>
-    <dt>Ziel</dt><dd class="mono wrap">{{ preview.destination }}</dd>
-    <dt>Betrag</dt><dd>{{ preview.amount_btc }} BTC</dd>
-    <dt>Inputs</dt><dd>{{ preview.input_btc }} BTC</dd>
-    <dt>Fee</dt><dd>{{ preview.fee_btc }} BTC / {{ preview.fee_sats }} sats</dd>
-    <dt>Change</dt><dd>{{ preview.change_btc }} BTC <span class="mono wrap">{{ preview.change_address or '' }}</span></dd>
-  </dl>
-  <h3>Inputs</h3>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Betrag</th><th>Adresse</th><th>Pfad</th><th>Outpoint</th></tr></thead>
-    <tbody>{% for i in preview.inputs %}<tr><td>{{ i.amount_btc }}</td><td class="mono wrap">{{ i.address }}</td><td class="mono">{{ i.derivation_path }}</td><td class="mono wrap">{{ i.txid }}:{{ i.vout }}</td></tr>{% endfor %}</tbody>
-  </table></div>
-  <details>
-    <summary>Raw Transaction anzeigen</summary>
-    <p class="mono wrap">{{ preview.rawtx }}</p>
+  <div class="summary-grid">
+    <div><span>Input</span><strong>{{ '%.8f'|format(preview.input_total_btc) }} BTC</strong></div>
+    <div><span>Zahlung</span><strong>{{ preview.amount }} BTC</strong></div>
+    <div><span>Fee</span><strong>{{ preview.fee }} sats</strong><small>{{ '%.8f'|format(preview.fee_btc) }} BTC</small></div>
+    <div><span>Wechselgeld</span><strong>{{ '%.8f'|format(preview.change_btc) }} BTC</strong></div>
+  </div>
+
+  <h3>Outputs</h3>
+  <div class="output-list">
+    {% for o in preview.outputs %}
+      <div class="output-card">
+        <strong>{{ o.kind }}</strong>
+        <code>{{ o.address[:10] }}…{{ o.address[-10:] }}</code>
+        <span>{{ '%.8f'|format(o.amount_sats/100000000) }} BTC</span>
+      </div>
+    {% endfor %}
+  </div>
+
+  <details class="expert-details">
+    <summary>Inputs und Raw TX anzeigen</summary>
+    <div class="coin-list compact">
+      {% for i in preview.inputs %}
+        <div class="coin-card readonly">
+          <span class="coin-main"><strong>{{ '%.8f'|format(i.amount_sats/100000000) }} BTC</strong><code>{{ i.address[:8] }}…{{ i.address[-8:] }}</code></span>
+          <small><code>{{ i.txid }}:{{ i.vout }}</code></small>
+        </div>
+      {% endfor %}
+    </div>
+    <code class="break rawbox">{{ preview.raw }}</code>
   </details>
-  <form method="post" action="/wallet/send/broadcast">
-    <input type="hidden" name="destination" value="{{ preview.destination }}" />
-    <input type="hidden" name="amount" value="{{ preview.amount_btc }}" />
-    <input type="hidden" name="fee_sats" value="{{ preview.fee_sats }}" />
-    <input type="hidden" name="change_address" value="{{ preview.change_address or '' }}" />
-    <button class="danger">Jetzt broadcasten</button>
+
+  <form method="post" action="/send/broadcast">
+    <input type="hidden" name="rawtx" value="{{ preview.raw }}">
+    <button class="danger">Transaktion broadcasten</button>
   </form>
 </section>
 {% endif %}
+
+<script>
+function updateSendUi(){
+  const manual = document.querySelector('input[name="coin_mode"][value="manual"]')?.checked;
+  const panel = document.getElementById('coinControl');
+  const mode = document.getElementById('modeLabel');
+  if(panel) panel.classList.toggle('hidden', !manual);
+  if(mode) mode.textContent = manual ? 'Manuell' : 'Automatisch';
+  if(!manual){ document.querySelectorAll('input[name="selected_utxos"]').forEach(cb => cb.checked = false); }
+  const existing = document.querySelector('input[name="change_mode"][value="existing"]')?.checked;
+  const box = document.getElementById('existingChange');
+  if(box) box.classList.toggle('hidden', !existing);
+}
+document.querySelectorAll('input[name="coin_mode"],input[name="change_mode"]').forEach(el => el.addEventListener('change', updateSendUi));
+if(document.querySelector('input[name="selected_utxos"]:checked')) document.querySelector('input[name="coin_mode"][value="manual"]').checked = true;
+updateSendUi();
+</script>
 {% endblock %}

@@ -1,62 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero-card">
-  <p class="eyebrow">Deine Wallet</p>
-  <h1>{{ user.username }}</h1>
-  <p class="muted">Empfangsadressen werden aus deiner HD-Wallet abgeleitet. Change-Adressen entstehen automatisch beim Senden.</p>
-</section>
-
+<h1>Wallet</h1>
 <section class="card">
-  <h2>Neue Empfangsadresse</h2>
-  <form method="post" action="/wallet/address" class="inline-form">
-    <input name="label" placeholder="Label, z. B. Testzahlung" />
-    <button>Adresse erzeugen</button>
+  <h2>{{ account.name }}</h2>
+  <p class="big">{{ balances.total }} BTC</p>
+  <p>{{ balances.utxo_count }} UTXOs · immature: {{ balances.immature }} BTC</p>
+  <form method="post" action="/wallet/address"><button>Neue Empfangsadresse</button></form>
+</section>
+<section class="card">
+  <h2>Konto wechseln</h2>
+  <form method="post" action="/accounts/select" class="inlineform">
+    <select name="account_id">
+      {% for a in accounts %}<option value="{{ a.id }}" {% if a.id==account.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+    </select>
+    <button>Öffnen</button>
   </form>
 </section>
-
-<section class="card">
-  <h2>HD-Daten</h2>
-  <dl>
-    <dt>Account Path</dt><dd class="mono">{{ wallet.account_path }}</dd>
-    <dt>xpub</dt><dd class="mono wrap">{{ wallet.account_xpub }}</dd>
-  </dl>
-  <details>
-    <summary>xprv und Seed-Backup anzeigen</summary>
-    <p class="mono wrap danger-text">{{ wallet.account_xprv }}</p>
-    <p class="mono wrap danger-text">{{ wallet.seed_backup_phrase }}</p>
-  </details>
-</section>
-
 <section class="card">
   <h2>Adressen</h2>
-  <div class="table-scroll"><table>
-    <thead><tr><th>Typ</th><th>Index</th><th>Label</th><th>Adresse</th><th>Pfad</th></tr></thead>
-    <tbody>
+  <div class="table">
     {% for a in addresses %}
-      <tr>
-        <td>{{ a.address_type }}</td>
-        <td>{{ a.address_index }}</td>
-        <td>{{ a.label }}</td>
-        <td class="mono wrap">{{ a.address }}</td>
-        <td class="mono">{{ a.derivation_path }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table></div>
-</section>
-
-<section class="card">
-  <h2>Öffentliche Adressen anderer Nutzer</h2>
-  {% if public_addresses %}
-  <div class="address-list">
-    {% for a in public_addresses %}
-    <article class="mini-card">
-      <strong>{{ a.username }}</strong>
-      <span class="muted">{{ a.label }} · {{ a.derivation_path }}</span>
-      <code>{{ a.address }}</code>
-    </article>
+    <div class="row"><span>{{ 'Empfang' if a.branch==0 else 'Change' }} #{{ a.idx }}</span><code>{{ a.address }}</code></div>
     {% endfor %}
   </div>
-  {% else %}<p class="muted">Noch keine Adressen vorhanden.</p>{% endif %}
+</section>
+<section class="card">
+  <h2>UTXOs</h2>
+  <div class="table">
+    {% for u in utxos %}<div class="row"><span>{{ u.amount_sats / 100000000 }} BTC</span><code>{{ u.txid }}:{{ u.vout }}</code></div>
+    {% else %}<p>Noch keine UTXOs im lokalen Index. Sync ausführen, bei alten Guthaben ab Block 0.</p>{% endfor %}
+  </div>
 </section>
 {% endblock %}

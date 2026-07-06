@@ -1,14 +1,1 @@
-{% extends "base.html" %}
-{% block content %}
-<section class="card auth-card">
-  <h1>Einloggen</h1>
-  <p class="muted">Private Wallet-Lab-App für deine Chain.</p>
-  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-  <form method="post" action="/login" class="stack">
-    <label>Benutzername<input name="username" autocomplete="username" required></label>
-    <label>Passwort<input name="password" type="password" autocomplete="current-password" required></label>
-    <button>Einloggen</button>
-  </form>
-  <p><a href="/register">Neuen Nutzer erstellen</a></p>
-</section>
-{% endblock %}
+{% extends "base.html" %}{% block content %}<section class="card"><h1>Login</h1>{% if error %}<p class="err">{{ error }}</p>{% endif %}<form method="post"><label>User<input name="username" required></label><label>Passwort<input name="password" type="password" required></label><button>Einloggen</button></form><p><a href="/register">Neuen Benutzer erstellen</a></p></section>{% endblock %}

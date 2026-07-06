@@ -15,3 +15,4 @@ app/__pycache__/
 # Virtuelle Umgebungen
 .venv/
 venv/
+app/routes/__pycache__

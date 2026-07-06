@@ -2,29 +2,26 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ settings.app_title }}</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header class="topbar">
+<header class="top">
   <div>
-    <strong>{{ settings.app_title }}</strong>
-    {% if user %}<small>@{{ user.username }}</small>{% endif %}
+    <b>{{ settings.app_title }}</b>
+    {% if user %}<small>{{ user.username }} · {{ account.name if account else 'kein Konto' }}</small>{% endif %}
   </div>
-  {% if user %}
-  <form method="post" action="/logout"><button class="linkbtn">Logout</button></form>
-  {% endif %}
+  {% if user %}<a href="/logout">Logout</a>{% endif %}
 </header>
-<main class="container">
-  {% block content %}{% endblock %}
-</main>
+<main>{% block content %}{% endblock %}</main>
 {% if user %}
-<nav class="bottomnav">
+<nav class="bottom">
   <a href="/">Home</a>
   <a href="/wallet">Wallet</a>
-  <a href="/wallet/send">Senden</a>
-  <a href="/explorer">Explorer</a>
+  <a href="/send">Senden</a>
+  <a href="/sync">Sync</a>
+  <a href="/backup">Konten</a>
 </nav>
 {% endif %}
 </body>

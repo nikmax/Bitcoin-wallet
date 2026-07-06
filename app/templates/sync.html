@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Sync</h1>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<section class="card">
+  <h2>Lokaler Index</h2>
+  <dl><dt>Lokaler Index</dt><dd>{{ sync.height }}</dd><dt>Node Tip</dt><dd>{{ sync.tip }}</dd><dt>Rest</dt><dd>{{ sync.remaining }}</dd></dl>
+  <form method="post">
+    <label>Bereich
+      <select name="scope">
+        <option value="account">Nur aktives Konto: {{ account.name }}</option>
+        <option value="all">Alle Konten / alle Benutzer-Adressen</option>
+      </select>
+    </label>
+    <label>Start-Blockhöhe, optional<input name="start_height" placeholder="leer = weiter ab lokalem Index, 0 = Vollscan"></label>
+    <label>Max. Blöcke pro Lauf<input name="limit" type="number" value="200"></label>
+    <button>Jetzt synchronisieren</button>
+  </form>
+  <p class="muted">Für importierte Backups oder alte Adressen: Start-Blockhöhe 0 verwenden. Große Chains besser in mehreren Läufen scannen.</p>
+</section>
+{% if result %}<section class="card"><h2>Ergebnis</h2><pre>{{ result }}</pre></section>{% endif %}
+{% endblock %}
