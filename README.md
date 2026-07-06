@@ -24,7 +24,7 @@ Eine lokale FastAPI-Webapp als experimentelles Wallet-Frontend für eine private
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up
 ```
 
 Dann im Browser:
@@ -59,12 +59,3 @@ Standardmäßig:
 data/app.db
 ```
 
-In `.gitignore` belassen:
-
-```text
-.env
-data/
-*.db
-*.db-wal
-*.db-shm
-```
