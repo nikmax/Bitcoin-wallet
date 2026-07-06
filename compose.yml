@@ -7,10 +7,6 @@ services:
       - .env
     ports:
       - "8000:8000"
-    # If bitcoind runs on the Docker host:
-    # Linux: use extra_hosts below and set BITCOIN_RPC_HOST=host.docker.internal
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
     volumes:
       - ./:/wallet
     command:
