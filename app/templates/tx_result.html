@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  {% if txid %}
+    <h1>Gesendet</h1>
+    <p>TXID:</p><code class="address">{{ txid }}</code>
+    <p><a class="button" href="/">Zurück</a></p>
+  {% else %}
+    <h1>Fehler</h1>
+    <div class="alert">{{ error }}</div>
+    <p><a class="button" href="/wallet/send">Zurück</a></p>
+  {% endif %}
+</section>
+{% endblock %}

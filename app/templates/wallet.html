@@ -1,19 +1,62 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Meine Wallet</h1>
-<section class="card"><h2>Wallet-Identität</h2><dl><dt>Benutzer</dt><dd>{{ user.username }}</dd><dt>Core-Wallet</dt><dd class="mono">{{ wallet_info.walletname }}</dd><dt>Private Keys</dt><dd>{{ 'aktiv' if wallet_info.private_keys_enabled else 'deaktiviert' }}</dd></dl><p class="muted">Die privaten Schlüssel liegen in Bitcoin Core. Diese Webapp ruft beim Senden die Signatur über deine geladene Core-Wallet auf.</p></section>
-{% if request.query_params.get('new_address') %}
-<section class="card ok"><strong>Neue Adresse erzeugt:</strong><div class="mono wrap bigaddress">{{ request.query_params.get('new_address') }}</div></section>
-{% endif %}
-{% if private_key %}
-<section class="card danger"><h2>Privater Schlüssel für {{ private_key_address }}</h2><p>Nur für dein privates Labor. Nicht teilen.</p><div class="mono wrap bigaddress">{{ private_key }}</div></section>
-{% endif %}
-<div class="grid">
-<section class="card"><h2>Neue Empfangsadresse</h2><form method="post" action="/wallet/new-address" class="stack"><label>Label <input name="label" placeholder="z. B. Zahlung von Bob"></label><button class="primary">Adresse erzeugen</button></form></section>
-<section class="card"><h2>Balances</h2><dl><dt>Trusted</dt><dd>{{ balances.mine.trusted if balances.mine is defined else '-' }}</dd><dt>Immature</dt><dd>{{ balances.mine.immature if balances.mine is defined else '-' }}</dd><dt>Pending</dt><dd>{{ balances.mine.untrusted_pending if balances.mine is defined else '-' }}</dd></dl></section>
-</div>
-<section class="card"><h2>Meine App-Adressen</h2>{% if my_addresses %}{% for a in my_addresses %}<div class="address-card"><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }} · {{ a.created_at }}</small><a class="buttonlink small" href="/send?address={{ a.address }}">Von meiner Wallet senden</a> <a class="buttonlink small dangerlink" href="/wallet?show_key={{ a.address }}">Privatkey anzeigen</a></div>{% endfor %}{% else %}<p class="muted">Noch keine Adresse für deinen Nutzer.</p>{% endif %}</section>
-<section class="card"><h2>Alle Core-bekannten Adressen dieser Wallet</h2><div class="tablewrap"><table><tr><th>Adresse</th><th>Label</th><th>Amount</th><th>Confs</th><th>TXIDs</th></tr>{% for a in addresses %}<tr><td class="mono wrap">{{ a.address }}</td><td>{{ a.label }}</td><td>{{ a.amount }}</td><td>{{ a.confirmations }}</td><td>{{ a.txids|length }}</td></tr>{% endfor %}</table></div></section>
-<section class="card"><h2>UTXOs / listunspent 0</h2><div class="tablewrap"><table><tr><th>TXID</th><th>vout</th><th>Adresse</th><th>Betrag</th><th>Confs</th><th>Spendable</th></tr>{% for u in unspent %}<tr><td class="mono wrap">{{ u.txid }}</td><td>{{ u.vout }}</td><td class="mono wrap">{{ u.address }}</td><td>{{ u.amount }}</td><td>{{ u.confirmations }}</td><td>{{ u.spendable }}</td></tr>{% endfor %}</table></div></section>
-<section class="card"><h2>Transaktionen</h2><div class="tablewrap"><table><tr><th>Zeit</th><th>Kategorie</th><th>Betrag</th><th>Confs</th><th>TXID</th><th>Hinweis</th></tr>{% for t in transactions %}<tr class="{% if t.generated %}coinbase{% endif %}"><td>{{ t.time }}</td><td>{{ t.category }}</td><td>{{ t.amount }}</td><td>{{ t.confirmations }}</td><td class="mono wrap">{{ t.txid }}</td><td>{% if t.generated %}Coinbase{% endif %}{% if t.confirmations is defined and t.confirmations < 101 and t.generated %} / immature möglich{% endif %}</td></tr>{% endfor %}</table></div></section>
+<section class="hero-card">
+  <p class="eyebrow">Deine Wallet</p>
+  <h1>{{ user.username }}</h1>
+  <p class="muted">Empfangsadressen werden aus deiner HD-Wallet abgeleitet. Change-Adressen entstehen automatisch beim Senden.</p>
+</section>
+
+<section class="card">
+  <h2>Neue Empfangsadresse</h2>
+  <form method="post" action="/wallet/address" class="inline-form">
+    <input name="label" placeholder="Label, z. B. Testzahlung" />
+    <button>Adresse erzeugen</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>HD-Daten</h2>
+  <dl>
+    <dt>Account Path</dt><dd class="mono">{{ wallet.account_path }}</dd>
+    <dt>xpub</dt><dd class="mono wrap">{{ wallet.account_xpub }}</dd>
+  </dl>
+  <details>
+    <summary>xprv und Seed-Backup anzeigen</summary>
+    <p class="mono wrap danger-text">{{ wallet.account_xprv }}</p>
+    <p class="mono wrap danger-text">{{ wallet.seed_backup_phrase }}</p>
+  </details>
+</section>
+
+<section class="card">
+  <h2>Adressen</h2>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Typ</th><th>Index</th><th>Label</th><th>Adresse</th><th>Pfad</th></tr></thead>
+    <tbody>
+    {% for a in addresses %}
+      <tr>
+        <td>{{ a.address_type }}</td>
+        <td>{{ a.address_index }}</td>
+        <td>{{ a.label }}</td>
+        <td class="mono wrap">{{ a.address }}</td>
+        <td class="mono">{{ a.derivation_path }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card">
+  <h2>Öffentliche Adressen anderer Nutzer</h2>
+  {% if public_addresses %}
+  <div class="address-list">
+    {% for a in public_addresses %}
+    <article class="mini-card">
+      <strong>{{ a.username }}</strong>
+      <span class="muted">{{ a.label }} · {{ a.derivation_path }}</span>
+      <code>{{ a.address }}</code>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Noch keine Adressen vorhanden.</p>{% endif %}
+</section>
 {% endblock %}

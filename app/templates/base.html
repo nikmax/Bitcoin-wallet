@@ -8,26 +8,24 @@
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="/">₿ Wallet Lab</a>
+  <div>
+    <strong>{{ settings.app_title }}</strong>
+    {% if user %}<small>@{{ user.username }}</small>{% endif %}
+  </div>
   {% if user %}
-  <form method="post" action="/logout" class="logout"><button>Logout</button></form>
+  <form method="post" action="/logout"><button class="linkbtn">Logout</button></form>
   {% endif %}
 </header>
-
-{% if user %}
-<nav class="bottomnav">
-  <a href="/">🏠<span>Status</span></a>
-  <a href="/wallet">👛<span>Wallet</span></a>
-  <a href="/users">👥<span>Nutzer</span></a>
-  <a href="/send">↗️<span>Senden</span></a>
-  <a href="/block">🧱<span>Blöcke</span></a>
-</nav>
-{% endif %}
-
 <main class="container">
-  {% if user %}<div class="userpill">Angemeldet als <strong>{{ user.username }}</strong></div>{% endif %}
-  <div class="warning">{{ warning }}</div>
   {% block content %}{% endblock %}
 </main>
+{% if user %}
+<nav class="bottomnav">
+  <a href="/">Home</a>
+  <a href="/wallet">Wallet</a>
+  <a href="/wallet/send">Senden</a>
+  <a href="/explorer">Explorer</a>
+</nav>
+{% endif %}
 </body>
 </html>

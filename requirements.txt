@@ -6,3 +6,5 @@ requests
 python-multipart
 pydantic<2
 itsdangerous
+base58
+ecdsa

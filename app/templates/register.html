@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="hero card">
-  <h1>Spielnutzer erstellen</h1>
-  <p>Jeder Nutzer bekommt eigene App-Adressen. Die echte Bitcoin-Core-Wallet bleibt weiterhin dieselbe RPC-Wallet.</p>
-  {% if error %}<div class="danger soft">{{ error }}</div>{% endif %}
+<section class="card auth-card">
+  <h1>Nutzer erstellen</h1>
+  <p class="muted">Jeder Nutzer bekommt automatisch eine eigene App-Wallet-Adresse.</p>
+  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
   <form method="post" action="/register" class="stack">
-    <label>Benutzername <input required name="username" autocomplete="username"></label>
-    <label>Passwort <input required name="password" type="password" autocomplete="new-password"></label>
-    <button class="primary">Erstellen</button>
+    <label>Benutzername<input name="username" autocomplete="username" required></label>
+    <label>Passwort<input name="password" type="password" autocomplete="new-password" required></label>
+    <button>Erstellen</button>
   </form>
-  <p class="muted"><a href="/login">Zurück zum Login</a></p>
+  <p><a href="/login">Zum Login</a></p>
 </section>
 {% endblock %}

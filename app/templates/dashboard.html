@@ -1,34 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Dashboard</h1>
-<div class="mobile-grid">
-  <section class="card stat"><span>Blockhöhe</span><strong>{{ chain.blocks }}</strong></section>
-  <section class="card stat"><span>Peers</span><strong>{{ network.connections }}</strong></section>
-  <section class="card stat"><span>Mempool</span><strong>{{ mempool.size }}</strong></section>
-  <section class="card stat"><span>Verfügbar</span><strong>{{ balances.mine.trusted if balances.mine is defined else '-' }}</strong></section>
+<section class="hero-card">
+  <p class="eyebrow">Wallet Lab v0.3</p>
+  <h1>Hallo {{ user.username }}</h1>
+  <p class="muted">Eigene HD-App-Wallet. Bitcoin Core liefert nur Chain-Daten und broadcastet Raw-Transaktionen.</p>
+</section>
+
+<div class="grid two">
+  <section class="card balance-card">
+    <h2>Kontostand</h2>
+    {% if balances.error %}<p class="alert">{{ balances.error }}</p>{% endif %}
+    <div class="big-number">{{ balances.confirmed_btc }}</div>
+    <p class="muted">{{ balances.confirmed_sats }} sats bestätigt</p>
+  </section>
+
+  <section class="card">
+    <h2>HD-Wallet</h2>
+    <dl>
+      <dt>Account</dt><dd>{{ wallet.account_path }}</dd>
+      <dt>Nächste Empfangsadresse</dt><dd>{{ wallet.external_index }}</dd>
+      <dt>Nächste Change-Adresse</dt><dd>{{ wallet.change_index }}</dd>
+    </dl>
+    <details>
+      <summary>Lab-Backup anzeigen</summary>
+      <p class="mono wrap danger-text">{{ wallet.seed_backup_phrase }}</p>
+      <p class="muted">Nur für deine private Lern-Chain. Nicht für echtes Mainnet verwenden.</p>
+    </details>
+  </section>
 </div>
-<div class="grid">
-  <section class="card"><h2>Chain</h2><dl>
-    <dt>Best Block</dt><dd class="mono wrap">{{ chain.bestblockhash }}</dd>
-    <dt>Difficulty</dt><dd>{{ chain.difficulty }}</dd>
-    <dt>IBD</dt><dd>{{ chain.initialblockdownload }}</dd>
-    <dt>Chain</dt><dd>{{ chain.chain }}</dd>
-  </dl></section>
-  <section class="card"><h2>Meine Wallet</h2><dl>
-    <dt>Benutzer</dt><dd>{{ user.username }}</dd>
-    <dt>Core-Wallet</dt><dd class="mono">{{ wallet_info.walletname }}</dd>
-    <dt>Trusted</dt><dd>{{ balances.mine.trusted if balances.mine is defined else '-' }}</dd>
-    <dt>Immature</dt><dd>{{ balances.mine.immature if balances.mine is defined else '-' }}</dd>
-    <dt>Pending</dt><dd>{{ balances.mine.untrusted_pending if balances.mine is defined else '-' }}</dd>
-  </dl></section>
+
+<div class="grid two">
+  <section class="card">
+    <h2>Node</h2>
+    {% if chain.error %}<p class="alert">{{ chain.error }}</p>{% else %}
+    <dl>
+      <dt>Blöcke</dt><dd>{{ chain.blocks }}</dd>
+      <dt>Bestblock</dt><dd class="mono wrap">{{ chain.bestblockhash }}</dd>
+      <dt>IBD</dt><dd>{{ chain.initialblockdownload }}</dd>
+      <dt>Difficulty</dt><dd>{{ chain.difficulty }}</dd>
+    </dl>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Netzwerk</h2>
+    <dl>
+      <dt>Peers</dt><dd>{{ network.connections if not network.error else 'n/a' }}</dd>
+      <dt>Mempool TXs</dt><dd>{{ mempool.size if not mempool.error else 'n/a' }}</dd>
+    </dl>
+  </section>
 </div>
+
 <section class="card">
-  <h2>Meine letzten Empfangsadressen</h2>
-  {% if my_addresses %}
-    {% for a in my_addresses[:3] %}<div class="address-card"><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }} · Wallet {{ a.wallet_name or wallet_info.walletname }}</small></div>{% endfor %}
-  {% else %}
-    <p class="muted">Du hast noch keine eigene Adresse. Erzeuge eine in deiner Wallet.</p>
-  {% endif %}
-  <a class="buttonlink" href="/wallet">Zur Wallet</a>
+  <h2>Letzte UTXOs</h2>
+  {% if balances.utxos %}
+  <div class="table-scroll"><table>
+    <thead><tr><th>Betrag</th><th>Adresse</th><th>Pfad</th><th>TXID</th></tr></thead>
+    <tbody>
+      {% for u in balances.utxos[:10] %}
+      <tr>
+        <td>{{ u.amount_btc }}</td>
+        <td class="mono wrap">{{ u.address }}</td>
+        <td class="mono">{{ u.derivation_path }}</td>
+        <td class="mono wrap">{{ u.txid }}:{{ u.vout }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted">Noch keine bestätigten UTXOs für deine App-Adressen gefunden.</p>{% endif %}
 </section>
 {% endblock %}

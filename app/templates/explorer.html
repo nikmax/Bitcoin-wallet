@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Explorer Light</h1>
+  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+  <form method="post" action="/explorer" class="inlineform">
+    <input name="query" placeholder="Blockhöhe, Blockhash oder TXID" value="{{ query }}" required>
+    <button>Suchen</button>
+  </form>
+</section>
+{% if result %}
+<section class="card">
+  <h2>Ergebnis</h2>
+  <pre>{{ result | tojson(indent=2) }}</pre>
+</section>
+{% endif %}
+{% endblock %}

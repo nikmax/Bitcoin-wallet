@@ -1,33 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Senden</h1>
-<section class="card danger"><strong>Warnung:</strong> Du sendest aus deiner eigenen Core-Wallet <span class="mono">{{ user.wallet_name }}</span>. Bitcoin Core wählt UTXOs, signiert mit den privaten Schlüsseln dieser Wallet und broadcastet auf deiner privaten Chain.</section>
-{% if form_error %}<section class="card danger">{{ form_error }}</section>{% endif %}
-{% if txid %}<section class="card ok"><h2>Gesendet</h2><p>TXID:</p><div class="mono wrap">{{ txid }}</div></section>{% endif %}
-<section class="card">
-  <h2>Empfänger aus der App</h2>
-  <p class="muted">Tippe eine Adresse an, kopiere sie oder nutze den Send-Link auf der Nutzerseite.</p>
-  {% for u in users %}{% if u.username != user.username %}{% for a in u.addresses %}<div class="address-card"><strong>{{ u.username }}</strong><div class="mono wrap">{{ a.address }}</div><small>{{ a.label or 'ohne Label' }}</small></div>{% endfor %}{% endif %}{% endfor %}
+<section class="hero-card warning">
+  <p class="eyebrow">Senden</p>
+  <h1>Raw Transaction</h1>
+  <p>v0.3 baut und signiert Legacy-P2PKH-Transaktionen in der App. Bitcoin Core broadcastet nur per <code>sendrawtransaction</code>.</p>
 </section>
+
 <section class="card">
-  <h2>Preview</h2>
-  <form method="post" action="/send/preview">
-    <label>Zieladresse <input required name="address" value="{{ preview.address if preview else request.query_params.get('address', '') }}"></label>
-    <label>Betrag BTC <input required name="amount" type="number" step="0.00000001" value="{{ preview.amount if preview }}"></label>
-    <label>Fee-Rate sat/vB optional <input name="fee_rate" type="number" step="0.1" value="{{ preview.fee_rate if preview }}"></label>
-    <button>Dry-Run / Preview</button>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/wallet/send/preview" class="stack-form">
+    <label>Zieladresse
+      <input name="destination" required value="{{ preview.destination if preview else '' }}" placeholder="1..." />
+    </label>
+    <label>Betrag BTC
+      <input name="amount" required inputmode="decimal" value="{{ preview.amount_btc if preview else '' }}" />
+    </label>
+    <label>Fee in sats
+      <input name="fee_sats" required inputmode="numeric" value="{{ preview.fee_sats if preview else 1000 }}" />
+    </label>
+    <button>Preview erstellen</button>
   </form>
 </section>
+
 {% if preview %}
 <section class="card">
-  <h2>Bitte bestätigen</h2>
-  <dl><dt>Von Wallet</dt><dd class="mono">{{ preview.from_wallet }}</dd><dt>Ziel</dt><dd class="mono wrap">{{ preview.address }}</dd><dt>Betrag</dt><dd>{{ preview.amount }} BTC</dd><dt>Fee-Rate</dt><dd>{{ preview.fee_rate or 'Core Default' }}</dd></dl>
-  <p>Verfügbare Balance laut getbalances:</p><pre>{{ preview.balances | tojson(indent=2) }}</pre>
-  <form method="post" action="/send/confirm">
-    <input type="hidden" name="address" value="{{ preview.address }}">
-    <input type="hidden" name="amount" value="{{ preview.amount }}">
-    <input type="hidden" name="fee_rate" value="{{ preview.fee_rate }}">
-    <button class="dangerbtn">Jetzt signieren und senden</button>
+  <h2>Vorschau</h2>
+  <dl>
+    <dt>Ziel</dt><dd class="mono wrap">{{ preview.destination }}</dd>
+    <dt>Betrag</dt><dd>{{ preview.amount_btc }} BTC</dd>
+    <dt>Inputs</dt><dd>{{ preview.input_btc }} BTC</dd>
+    <dt>Fee</dt><dd>{{ preview.fee_btc }} BTC / {{ preview.fee_sats }} sats</dd>
+    <dt>Change</dt><dd>{{ preview.change_btc }} BTC <span class="mono wrap">{{ preview.change_address or '' }}</span></dd>
+  </dl>
+  <h3>Inputs</h3>
+  <div class="table-scroll"><table>
+    <thead><tr><th>Betrag</th><th>Adresse</th><th>Pfad</th><th>Outpoint</th></tr></thead>
+    <tbody>{% for i in preview.inputs %}<tr><td>{{ i.amount_btc }}</td><td class="mono wrap">{{ i.address }}</td><td class="mono">{{ i.derivation_path }}</td><td class="mono wrap">{{ i.txid }}:{{ i.vout }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <details>
+    <summary>Raw Transaction anzeigen</summary>
+    <p class="mono wrap">{{ preview.rawtx }}</p>
+  </details>
+  <form method="post" action="/wallet/send/broadcast">
+    <input type="hidden" name="destination" value="{{ preview.destination }}" />
+    <input type="hidden" name="amount" value="{{ preview.amount_btc }}" />
+    <input type="hidden" name="fee_sats" value="{{ preview.fee_sats }}" />
+    <input type="hidden" name="change_address" value="{{ preview.change_address or '' }}" />
+    <button class="danger">Jetzt broadcasten</button>
   </form>
 </section>
 {% endif %}
