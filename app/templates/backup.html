@@ -34,7 +34,7 @@
 
 <section class="card">
   <h2>BIP39-Konto importieren</h2>
-  <p class="muted">Import fügt ein neues Konto hinzu. Bestehende Konten werden nicht überschrieben.</p>
+  <p class="muted">Import fügt ein neues Konto hinzu. Bestehende Konten werden nicht überschrieben. Vor dem Scan werden automatisch Empfangs- und Wechseladressen bis zur Gap-Limit-Grenze abgeleitet.</p>
   <form method="post" action="/backup/import">
     <label>Kontoname<input name="name" value="Importiertes Konto" required></label>
     <label>Mnemonic<textarea name="mnemonic" rows="4" required></textarea></label>

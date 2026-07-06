@@ -52,6 +52,8 @@ def init_db():
             privkey_hex text not null,
             wif text not null,
             label text,
+            hidden integer default 0,
+            used integer default 0,
             created_at integer not null
         );
         create table if not exists utxos(
@@ -62,6 +64,7 @@ def init_db():
             address text not null,
             amount_sats integer not null,
             height integer,
+            block_time integer,
             coinbase integer default 0,
             spent integer default 0,
             spent_by text,
@@ -89,6 +92,28 @@ def init_db():
             c.execute('alter table utxos add column account_id integer')
         if 'account_id' not in _cols(c, 'txs'):
             c.execute('alter table txs add column account_id integer')
+        if 'hidden' not in _cols(c, 'addresses'):
+            c.execute('alter table addresses add column hidden integer default 0')
+        if 'used' not in _cols(c, 'addresses'):
+            c.execute('alter table addresses add column used integer default 0')
+        if 'block_time' not in _cols(c, 'utxos'):
+            c.execute('alter table utxos add column block_time integer')
+        # Upgrade-Hilfe von v0.8: dort wurden Lookahead-Adressen sichtbar gespeichert.
+        # Wenn sehr viele unbenutzte Adressen in einem Branch existieren, behandeln wir
+        # sie als Reserve und blenden sie aus. Adressen mit UTXOs bleiben sichtbar.
+        c.execute('''
+            update addresses
+               set used=1, hidden=0
+             where exists (select 1 from utxos where utxos.account_id=addresses.account_id and utxos.address=addresses.address)
+        ''')
+        heavy = c.execute('select account_id, branch, count(*) c from addresses group by account_id, branch having c > 30').fetchall()
+        for r in heavy:
+            c.execute('''
+                update addresses
+                   set hidden=1
+                 where account_id=? and branch=? and used=0
+                   and not exists (select 1 from utxos where utxos.account_id=addresses.account_id and utxos.address=addresses.address)
+            ''', (r['account_id'], r['branch']))
         tables = {r[0] for r in c.execute("select name from sqlite_master where type='table'").fetchall()}
         if 'wallets' in tables:
             old_wallets = c.execute('select * from wallets').fetchall()

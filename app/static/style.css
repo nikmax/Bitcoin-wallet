@@ -5,3 +5,40 @@
 /* v0.7 Send UX */
 .form-grid{display:grid;gap:.7rem}@media(min-width:720px){.form-grid{grid-template-columns:2fr 1fr 1fr}}
 .soft{background:#0d1530;border:1px solid #26355f}.summary-card{display:flex;gap:1rem;justify-content:space-between;align-items:center}.summary-card span,.summary-grid span{display:block;color:#9fb0d0;font-size:.9rem}.summary-card strong{font-size:1.15rem}.choice-stack{display:grid;gap:.75rem;margin:.75rem 0 1.25rem}.choice{display:flex;gap:.75rem;align-items:flex-start;background:#0c1328;border:1px solid #26355f;border-radius:16px;padding:13px}.choice input{width:auto;margin:.2rem 0 0}.choice strong{display:block}.choice small{display:block;color:#9fb0d0;margin-top:3px}.danger-choice{border-color:#6b2935}.danger-choice strong{color:#ffb4b4}.nested{padding:0 0 .5rem 2.2rem}.hidden{display:none!important}.expert-panel{border-top:1px solid #26355f;border-bottom:1px solid #26355f;padding:.5rem 0;margin:1rem 0}.coin-list{display:grid;gap:.75rem}.coin-card{display:grid;grid-template-columns:auto 1fr;gap:.75rem;align-items:start;background:#0c1328;border:1px solid #26355f;border-radius:16px;padding:13px}.coin-card>input{width:auto;margin:.25rem 0 0}.coin-main{display:grid;gap:3px}.coin-main strong{font-size:1.25rem}.coin-main small{color:#9fb0d0}.coin-card details{grid-column:1/-1;margin-left:1.7rem}.coin-card summary{color:#8eb2ff;cursor:pointer}.coin-card dl{margin:.5rem 0 0}.readonly{grid-template-columns:1fr}.compact .coin-card{padding:10px}.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin:1rem 0}@media(min-width:720px){.summary-grid{grid-template-columns:repeat(4,1fr)}}.summary-grid>div{background:#0c1328;border:1px solid #26355f;border-radius:14px;padding:12px}.summary-grid strong{display:block;font-size:1.1rem}.summary-grid small{color:#9fb0d0}.output-list{display:grid;gap:.7rem}.output-card{background:#0c1328;border:1px solid #26355f;border-radius:14px;padding:12px;display:grid;gap:4px}.output-card span{font-weight:700}.expert-details{margin:1rem 0}.rawbox{display:block;background:#0c1328;border:1px solid #26355f;border-radius:12px;padding:12px;margin-top:.7rem}.primary{font-size:1.05rem;padding:14px}.send-card h2{margin-top:1.4rem}
+
+
+/* v0.10 quieter send coin cards */
+.compact-help{margin-top:-.35rem;margin-bottom:.8rem}
+.coin-simple{grid-template-columns:auto 1fr;align-items:center}
+.coin-simple .coin-main strong{font-size:1.28rem;letter-spacing:.01em}
+.coin-simple .coin-main code{font-size:.95rem;background:transparent;padding:0;color:#edf2ff}
+.coin-simple .coin-main small{font-size:.9rem}
+.coin-details{grid-column:1/-1;margin-left:2rem!important;border-top:1px solid #26355f;padding-top:.55rem}
+.coin-details summary{font-size:.95rem}
+.wallet-coins .coin-card{padding:14px 12px}
+@media(max-width:560px){
+  .summary-card{align-items:stretch}
+  .coin-simple{grid-template-columns:auto 1fr}
+  .coin-simple .coin-main strong{font-size:1.18rem}
+  .coin-simple .coin-main code{font-size:.9rem}
+  .coin-details{margin-left:1.55rem!important}
+}
+
+/* v1.0 polish: QR and background sync */
+.input-action{display:flex;gap:.5rem;align-items:center}
+.input-action input{flex:1;min-width:0}
+button.small{padding:.75rem .9rem;white-space:nowrap}
+button.secondary{background:#223258;color:#eaf1ff;border:1px solid #425b96}
+.address-list{display:grid;gap:.8rem}
+.address-card{border:1px solid rgba(120,150,220,.35);border-radius:16px;padding:1rem;background:rgba(255,255,255,.025)}
+.address-main{display:grid;gap:.35rem}
+.qr-details{margin-top:.7rem}
+.qr-box{display:grid;gap:.7rem;justify-items:center;padding:1rem;background:#fff;border-radius:16px;color:#111;overflow:hidden}
+.qr-box img{width:min(260px,85vw);height:auto;image-rendering:pixelated}
+.qr-box code{color:#111;word-break:break-all;text-align:center;font-size:.85rem}
+.scanner-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:grid;place-items:center;z-index:1000;padding:1rem}
+.scanner-card{width:min(480px,100%);background:#111b35;border:1px solid #40568d;border-radius:20px;padding:1rem;box-shadow:0 16px 50px rgba(0,0,0,.5)}
+.scanner-card video{width:100%;border-radius:16px;background:#000;aspect-ratio:1/1;object-fit:cover}
+.progress-wrap{margin-top:1rem}.progress{height:12px;border-radius:99px;background:#0a1022;overflow:hidden;border:1px solid #33466f}.progress span{display:block;height:100%;background:#3478ff;border-radius:99px;transition:width .3s}
+.sync-job{margin-top:1rem;padding:.85rem;border:1px dashed #3d5287;border-radius:14px}.mt{margin-top:.8rem}
+@media(max-width:600px){.input-action{flex-direction:column;align-items:stretch}.input-action button{width:100%}.qr-box img{width:220px}}

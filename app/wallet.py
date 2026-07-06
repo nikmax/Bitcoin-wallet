@@ -77,8 +77,8 @@ def ensure_gap(account_id, branch, count):
     for i in range(start, count):
         d = derive_address(a['seed_hex'], branch, i)
         db.execute(
-            'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,created_at) values(?,?,?,?,?,?,?,?,?,?)',
-            (account_id, a['user_id'], branch, i, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], now)
+            'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,hidden,used,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)',
+            (account_id, a['user_id'], branch, i, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], 1, 0, now)
         )
 
 
@@ -89,19 +89,20 @@ def _insert_derived_address(account_id, branch, idx):
     d = derive_address(a['seed_hex'], branch, idx)
     now = int(time.time())
     db.execute(
-        'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,created_at) values(?,?,?,?,?,?,?,?,?,?)',
-        (account_id, a['user_id'], branch, idx, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], now)
+        'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,hidden,used,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)',
+        (account_id, a['user_id'], branch, idx, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], 0, 0, now)
     )
     row = db.one('select * from addresses where account_id=? and branch=? and idx=?', (account_id, branch, idx))
     if row:
-        return row
+        db.execute('update addresses set hidden=0 where id=?', (row['id'],))
+        return db.one('select * from addresses where id=?', (row['id'],))
     # Falls dieselbe Adresse global bereits in einem anderen Konto existiert, nächsten Index probieren.
     # Das verhindert UNIQUE(address)-Abstürze bei mehrfach importierten Seeds.
     for j in range(idx + 1, idx + 1000):
         d = derive_address(a['seed_hex'], branch, j)
         db.execute(
-            'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,created_at) values(?,?,?,?,?,?,?,?,?,?)',
-            (account_id, a['user_id'], branch, j, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], now)
+            'insert or ignore into addresses(account_id,user_id,branch,idx,address,pubkey_hex,privkey_hex,wif,label,hidden,used,created_at) values(?,?,?,?,?,?,?,?,?,?,?,?)',
+            (account_id, a['user_id'], branch, j, d['address'], d['pubkey_hex'], d['privkey_hex'], d['wif'], d['path'], 0, 0, now)
         )
         row = db.one('select * from addresses where account_id=? and branch=? and idx=?', (account_id, branch, j))
         if row:
@@ -109,32 +110,50 @@ def _insert_derived_address(account_id, branch, idx):
     raise ValueError('Keine freie Adresse gefunden. Prüfe, ob dasselbe Seed mehrfach importiert wurde.')
 
 
-def next_receive_address(account_id):
-    row = db.one('select max(idx) m from addresses where account_id=? and branch=0', (account_id,))
+def _next_visible_address(account_id, branch):
+    # Lookahead-Adressen bleiben zunächst versteckt. Wenn der Benutzer eine
+    # Adresse bewusst erzeugt, nehmen wir zuerst die niedrigste Reserveadresse
+    # und machen sie sichtbar, statt nach #99 direkt #100 anzuzeigen.
+    hidden = db.one(
+        'select * from addresses where account_id=? and branch=? and hidden=1 order by idx limit 1',
+        (account_id, branch),
+    )
+    if hidden:
+        db.execute('update addresses set hidden=0 where id=?', (hidden['id'],))
+        return db.one('select * from addresses where id=?', (hidden['id'],))
+    row = db.one('select max(idx) m from addresses where account_id=? and branch=?', (account_id, branch))
     idx = 0 if row['m'] is None else row['m'] + 1
-    return _insert_derived_address(account_id, 0, idx)
+    return _insert_derived_address(account_id, branch, idx)
+
+
+def next_receive_address(account_id):
+    return _next_visible_address(account_id, 0)
 
 
 def next_change_address(account_id):
-    row = db.one('select max(idx) m from addresses where account_id=? and branch=1', (account_id,))
-    idx = 0 if row['m'] is None else row['m'] + 1
-    return _insert_derived_address(account_id, 1, idx)
+    return _next_visible_address(account_id, 1)
 
 
 def change_addresses(account_id):
-    return db.all('select * from addresses where account_id=? and branch=1 order by idx', (account_id,))
+    return db.all('select * from addresses where account_id=? and branch=1 and hidden=0 order by idx', (account_id,))
 
 
 def own_addresses_for_change(account_id):
-    return db.all('select * from addresses where account_id=? order by branch,idx', (account_id,))
+    return db.all('select * from addresses where account_id=? and hidden=0 order by branch,idx', (account_id,))
 
 
 def receive_addresses(account_id):
-    return db.all('select * from addresses where account_id=? and branch=0 order by idx', (account_id,))
+    return db.all('select * from addresses where account_id=? and branch=0 and hidden=0 order by idx', (account_id,))
 
 
-def addresses(account_id):
-    return db.all('select * from addresses where account_id=? order by branch,idx', (account_id,))
+def addresses(account_id, include_hidden=False):
+    if include_hidden:
+        return db.all('select * from addresses where account_id=? order by branch,idx', (account_id,))
+    return db.all('select * from addresses where account_id=? and hidden=0 order by branch,idx', (account_id,))
+
+def hidden_address_count(account_id):
+    r = db.one('select count(*) c from addresses where account_id=? and hidden=1', (account_id,))
+    return r['c'] if r else 0
 
 
 def utxos(account_id):

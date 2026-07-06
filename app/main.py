@@ -1,17 +1,20 @@
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
+import io
+import qrcode
+from datetime import datetime
 from .config import settings
 from . import db
 from .auth import create_user, get_user_by_name, verify_password, current_user
 from .wallet import (
     ensure_account, active_account, user_accounts, create_account, delete_account,
-    restore_wallet, next_receive_address, addresses, balance, utxos, build_send, spendable_utxos, change_addresses, own_addresses_for_change
+    restore_wallet, next_receive_address, addresses, hidden_address_count, balance, utxos, build_send, spendable_utxos, change_addresses, own_addresses_for_change
 )
-from .sync import sync_to_tip, sync_status
+from .sync import sync_to_tip, sync_status, start_background_sync, background_status, stop_background_sync
 from .rpc import BitcoinRPC
 
 BASE = Path(__file__).resolve().parent
@@ -20,10 +23,28 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.mount('/static', StaticFiles(directory=BASE / 'static'), name='static')
 templates = Jinja2Templates(directory=BASE / 'templates')
 
+def fmt_ts(value):
+    if not value:
+        return 'unbekannt'
+    try:
+        return datetime.fromtimestamp(int(value)).strftime('%Y-%m-%d')
+    except Exception:
+        return 'unbekannt'
+
+templates.env.filters['date'] = fmt_ts
+
 
 @app.on_event('startup')
 def startup():
     db.init_db()
+
+
+@app.get('/qr.png')
+def qr_png(data: str):
+    img = qrcode.make(data)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    return Response(content=buf.getvalue(), media_type='image/png')
 
 
 def get_active_account(request, user):
@@ -149,7 +170,7 @@ def wallet_page(request: Request):
     if not u:
         return RedirectResponse('/login', 303)
     a = get_active_account(request, u)
-    return render(request, 'wallet.html', {'addresses': addresses(a['id']), 'utxos': utxos(a['id']), 'balances': balance(a['id'])})
+    return render(request, 'wallet.html', {'addresses': addresses(a['id']), 'hidden_addresses': hidden_address_count(a['id']), 'utxos': utxos(a['id']), 'balances': balance(a['id'])})
 
 
 @app.post('/wallet/address')
@@ -226,6 +247,41 @@ def run_sync(request: Request, limit: int = Form(200), start_height: str = Form(
         err = str(e)
         status = {}
     return render(request, 'sync.html', {'sync': status, 'result': result, 'error': err})
+
+
+@app.post('/sync/background')
+def run_sync_background(request: Request, batch_size: int = Form(200), start_height: str = Form(''), scope: str = Form('account')):
+    u = require_user(request)
+    if not u:
+        return RedirectResponse('/login', 303)
+    a = get_active_account(request, u)
+    start = int(start_height) if start_height.strip() != '' else None
+    account_id = a['id'] if scope == 'account' else None
+    try:
+        start_background_sync(batch_size=batch_size, start_height=start, account_id=account_id, scope=scope)
+    except Exception:
+        pass
+    return RedirectResponse('/sync', 303)
+
+
+@app.post('/sync/background/stop')
+def stop_sync_background(request: Request):
+    u = require_user(request)
+    if not u:
+        return RedirectResponse('/login', 303)
+    stop_background_sync()
+    return RedirectResponse('/sync', 303)
+
+
+@app.get('/sync/status.json')
+def sync_status_json(request: Request):
+    u = require_user(request)
+    if not u:
+        return JSONResponse({'error': 'not logged in'}, status_code=401)
+    try:
+        return JSONResponse(sync_status())
+    except Exception as e:
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 @app.get('/send')

@@ -4,7 +4,7 @@
 <section class="card">
   <h2>{{ account.name }}</h2>
   <p class="big">{{ balances.total }} BTC</p>
-  <p>{{ balances.utxo_count }} UTXOs · immature: {{ balances.immature }} BTC</p>
+  <p>{{ balances.utxo_count }} Coins · immature: {{ balances.immature }} BTC</p>
   <form method="post" action="/wallet/address"><button>Neue Empfangsadresse</button></form>
 </section>
 <section class="card">
@@ -17,18 +17,47 @@
   </form>
 </section>
 <section class="card">
-  <h2>Adressen</h2>
-  <div class="table">
+  <h2>Empfangen</h2>
+  <p class="muted">Angezeigt werden nur bewusst erzeugte oder tatsächlich genutzte Adressen. Reserve-/Lookahead-Adressen bleiben versteckt.</p>
+  {% if hidden_addresses %}<p class="muted">{{ hidden_addresses }} Reserveadressen im Hintergrund.</p>{% endif %}
+  <div class="address-list">
     {% for a in addresses %}
-    <div class="row"><span>{{ 'Empfang' if a.branch==0 else 'Change' }} #{{ a.idx }}</span><code>{{ a.address }}</code></div>
-    {% endfor %}
+    <article class="address-card">
+      <div class="address-main">
+        <strong>{{ 'Empfang' if a.branch==0 else 'Wechselgeld' }} #{{ a.idx }}</strong>
+        <code>{{ a.address }}</code>
+      </div>
+      <details class="qr-details">
+        <summary>QR anzeigen</summary>
+        <div class="qr-box">
+          <img src="/qr.png?data={{ a.address }}" alt="QR-Code für {{ a.address }}">
+          <code>{{ a.address }}</code>
+        </div>
+      </details>
+    </article>
+    {% else %}<p>Noch keine sichtbare Adresse. Erzeuge eine Empfangsadresse, wenn du Coins empfangen möchtest.</p>{% endfor %}
   </div>
 </section>
 <section class="card">
-  <h2>UTXOs</h2>
-  <div class="table">
-    {% for u in utxos %}<div class="row"><span>{{ u.amount_sats / 100000000 }} BTC</span><code>{{ u.txid }}:{{ u.vout }}</code></div>
-    {% else %}<p>Noch keine UTXOs im lokalen Index. Sync ausführen, bei alten Guthaben ab Block 0.</p>{% endfor %}
+  <h2>Coins</h2>
+  <div class="coin-list wallet-coins">
+    {% for u in utxos %}
+      <article class="coin-card readonly coin-simple">
+        <span class="coin-main">
+          <strong>{{ '%.8f'|format(u.amount_sats / 100000000) }} BTC</strong>
+          <small>{{ u.block_time|date }}</small>
+          <code>{{ u.address[:12] }}…{{ u.address[-10:] }}</code>
+        </span>
+        <details class="coin-details">
+          <summary>Technische Details</summary>
+          <dl>
+            <dt>Adresse</dt><dd><code>{{ u.address }}</code></dd>
+            <dt>Coin</dt><dd><code>{{ u.txid }}:{{ u.vout }}</code></dd>
+            <dt>Blockhöhe</dt><dd>{{ u.height if u.height else 'Mempool/unbekannt' }}</dd>
+          </dl>
+        </details>
+      </article>
+    {% else %}<p>Noch keine Coins im lokalen Index. Sync ausführen, bei alten Guthaben ab Block 0.</p>{% endfor %}
   </div>
 </section>
 {% endblock %}

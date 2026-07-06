@@ -8,7 +8,10 @@
   <form method="post" action="/send/preview" id="sendForm">
     <div class="form-grid">
       <label>Zieladresse
-        <input name="address" required placeholder="Bitcoin-Adresse" value="{{ preview.address if preview else '' }}">
+        <div class="input-action">
+          <input id="addressInput" name="address" required placeholder="Bitcoin-Adresse" value="{{ preview.address if preview else '' }}">
+          <button type="button" class="small secondary" id="scanQrBtn">QR scannen</button>
+        </div>
       </label>
       <label>Betrag BTC
         <input name="amount" required inputmode="decimal" placeholder="0.00000000" value="{{ preview.amount if preview else '' }}">
@@ -20,7 +23,7 @@
 
     <div class="summary-card soft">
       <div>
-        <span class="muted">Verfügbare Coins</span>
+        <span class="muted">Auswählbare Coins</span>
         <strong>{{ utxos|length }}</strong>
       </div>
       <div>
@@ -33,7 +36,7 @@
     <div class="choice-stack">
       <label class="choice">
         <input type="radio" name="coin_mode" value="auto" checked>
-        <span><strong>Automatische Coin-Auswahl</strong><small>Empfohlen. Die Wallet nimmt genug passende UTXOs.</small></span>
+        <span><strong>Automatische Coin-Auswahl</strong><small>Empfohlen. Die Wallet nimmt genug passende Coins.</small></span>
       </label>
       <label class="choice">
         <input type="radio" name="coin_mode" value="manual">
@@ -43,22 +46,24 @@
 
     <div id="coinControl" class="expert-panel hidden">
       <h3>Von welchen Coins senden?</h3>
+      <p class="muted compact-help">Wähle nur dann einzelne Coins aus, wenn du bewusst bestimmen willst, von welcher Empfangsadresse gesendet wird.</p>
       {% if utxos %}
-        <div class="coin-list">
+        <div class="coin-list wallet-coins">
         {% for u in utxos %}
-          <label class="coin-card">
+          <label class="coin-card coin-simple">
             <input type="checkbox" name="selected_utxos" value="{{ u.key }}" {% if preview and u.key in preview.selected_utxos %}checked{% endif %}>
             <span class="coin-main">
               <strong>{{ '%.8f'|format(u.btc) }} BTC</strong>
-              <small>{{ 'Empfang' if u.branch == 0 else 'Wechselgeld' }} #{{ u.idx if u.idx is not none else '?' }}</small>
-              <code>{{ u.address[:8] }}…{{ u.address[-8:] }}</code>
+              <small>{{ 'Empfang' if u.branch == 0 else 'Wechselgeld' }} #{{ u.idx if u.idx is not none else '?' }} · {{ u.block_time|date }}</small>
+              <code>{{ u.address[:10] }}…{{ u.address[-10:] }}</code>
             </span>
-            <details>
-              <summary>Details</summary>
+            <details class="coin-details">
+              <summary>Technische Details</summary>
               <dl>
                 <dt>Adresse</dt><dd><code>{{ u.address }}</code></dd>
+                <dt>Coin / Outpoint</dt><dd><code>{{ u.txid }}:{{ u.vout }}</code></dd>
                 <dt>Pfad</dt><dd><code>{{ u.path }}</code></dd>
-                <dt>Outpoint</dt><dd><code>{{ u.txid }}:{{ u.vout }}</code></dd>
+                <dt>Blockhöhe</dt><dd>{{ u.height if u.height else 'Mempool/unbekannt' }}</dd>
               </dl>
             </details>
           </label>
@@ -100,6 +105,15 @@
     <button class="primary">Vorschau erzeugen</button>
   </form>
 </section>
+
+<div id="qrScanner" class="scanner-modal hidden">
+  <div class="scanner-card">
+    <h2>QR-Code scannen</h2>
+    <video id="qrVideo" playsinline></video>
+    <p id="qrScanMsg" class="muted">Kamera wird gestartet…</p>
+    <button type="button" id="closeQrBtn">Schließen</button>
+  </div>
+</div>
 
 {% if preview %}
 <section class="card preview-card">
@@ -157,5 +171,47 @@ function updateSendUi(){
 document.querySelectorAll('input[name="coin_mode"],input[name="change_mode"]').forEach(el => el.addEventListener('change', updateSendUi));
 if(document.querySelector('input[name="selected_utxos"]:checked')) document.querySelector('input[name="coin_mode"][value="manual"]').checked = true;
 updateSendUi();
+
+let qrStream = null;
+async function stopQrScanner(){
+  if(qrStream){ qrStream.getTracks().forEach(t => t.stop()); qrStream = null; }
+  document.getElementById('qrScanner')?.classList.add('hidden');
+}
+async function startQrScanner(){
+  const modal = document.getElementById('qrScanner');
+  const video = document.getElementById('qrVideo');
+  const msg = document.getElementById('qrScanMsg');
+  if(!('BarcodeDetector' in window)){
+    alert('QR-Scanner wird von diesem Browser nicht unterstützt. Du kannst die Adresse weiterhin einfügen.');
+    return;
+  }
+  modal.classList.remove('hidden');
+  try{
+    const detector = new BarcodeDetector({formats:['qr_code']});
+    qrStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    video.srcObject = qrStream;
+    await video.play();
+    msg.textContent = 'Halte den QR-Code in den Rahmen.';
+    const tick = async () => {
+      if(!qrStream) return;
+      try{
+        const codes = await detector.detect(video);
+        if(codes.length){
+          const raw = codes[0].rawValue || '';
+          const addr = raw.startsWith('bitcoin:') ? raw.slice(8).split('?')[0] : raw.trim();
+          document.getElementById('addressInput').value = addr;
+          await stopQrScanner();
+          return;
+        }
+      }catch(e){}
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }catch(e){
+    msg.textContent = 'Kamera konnte nicht gestartet werden: ' + e.message;
+  }
+}
+document.getElementById('scanQrBtn')?.addEventListener('click', startQrScanner);
+document.getElementById('closeQrBtn')?.addEventListener('click', stopQrScanner);
 </script>
 {% endblock %}

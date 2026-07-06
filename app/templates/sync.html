@@ -4,7 +4,42 @@
 {% if error %}<p class="err">{{ error }}</p>{% endif %}
 <section class="card">
   <h2>Lokaler Index</h2>
-  <dl><dt>Lokaler Index</dt><dd>{{ sync.height }}</dd><dt>Node Tip</dt><dd>{{ sync.tip }}</dd><dt>Rest</dt><dd>{{ sync.remaining }}</dd></dl>
+  <dl>
+    <dt>Lokaler Index</dt><dd id="syncHeight">{{ sync.height }}</dd>
+    <dt>Node Tip</dt><dd id="syncTip">{{ sync.tip }}</dd>
+    <dt>Rest</dt><dd id="syncRemaining">{{ sync.remaining }}</dd>
+  </dl>
+  <div class="progress-wrap">
+    {% set pct = (100 * sync.height / sync.tip) if sync.tip and sync.tip > 0 and sync.height >= 0 else 0 %}
+    <div class="progress"><span id="syncProgress" style="width: {{ pct }}%"></span></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Hintergrund-Scan</h2>
+  <p class="muted">Der Scan läuft gruppenweise im Hintergrund. Du kannst die App weiter benutzen und den Fortschritt hier beobachten.</p>
+  <form method="post" action="/sync/background">
+    <label>Bereich
+      <select name="scope">
+        <option value="account">Nur aktives Konto: {{ account.name }}</option>
+        <option value="all">Alle Konten / alle Benutzer-Adressen</option>
+      </select>
+    </label>
+    <label>Start-Blockhöhe, optional
+      <input name="start_height" placeholder="leer = weiter ab lokalem Index, 0 = Vollscan">
+    </label>
+    <label>Blöcke pro Gruppe
+      <input name="batch_size" type="number" value="200">
+    </label>
+    <button class="primary">Hintergrund-Scan starten</button>
+  </form>
+  <form method="post" action="/sync/background/stop" class="mt"><button type="submit">Scan stoppen</button></form>
+  <div id="jobBox" class="sync-job muted">Status wird geladen…</div>
+</section>
+
+<section class="card soft">
+  <h2>Einmaliger Scan</h2>
+  <p class="muted">Nur für kleine Bereiche oder Tests. Für größere Bereiche besser den Hintergrund-Scan verwenden.</p>
   <form method="post">
     <label>Bereich
       <select name="scope">
@@ -13,10 +48,33 @@
       </select>
     </label>
     <label>Start-Blockhöhe, optional<input name="start_height" placeholder="leer = weiter ab lokalem Index, 0 = Vollscan"></label>
-    <label>Max. Blöcke pro Lauf<input name="limit" type="number" value="200"></label>
-    <button>Jetzt synchronisieren</button>
+    <label>Max. Blöcke<input name="limit" type="number" value="200"></label>
+    <button>Jetzt einmal scannen</button>
   </form>
-  <p class="muted">Für importierte Backups oder alte Adressen: Start-Blockhöhe 0 verwenden. Große Chains besser in mehreren Läufen scannen.</p>
 </section>
 {% if result %}<section class="card"><h2>Ergebnis</h2><pre>{{ result }}</pre></section>{% endif %}
+
+<script>
+async function refreshSync(){
+  try{
+    const r = await fetch('/sync/status.json');
+    const s = await r.json();
+    if(s.error) return;
+    document.getElementById('syncHeight').textContent = s.height;
+    document.getElementById('syncTip').textContent = s.tip;
+    document.getElementById('syncRemaining').textContent = s.remaining;
+    const pct = s.tip > 0 ? Math.max(0, Math.min(100, (s.height / s.tip) * 100)) : 0;
+    document.getElementById('syncProgress').style.width = pct + '%';
+    const j = s.job || {};
+    let text = j.running ? 'Scan läuft' : (j.done ? 'Scan fertig' : 'Kein Scan aktiv');
+    if(j.last_result){
+      text += ` · letzte Gruppe: ${j.last_result.start}–${j.last_result.end} · gefunden: ${j.last_result.found} · ausgegeben: ${j.last_result.spent}`;
+    }
+    if(j.error) text += ' · Fehler: ' + j.error;
+    document.getElementById('jobBox').textContent = text;
+  }catch(e){}
+}
+refreshSync();
+setInterval(refreshSync, 2000);
+</script>
 {% endblock %}
