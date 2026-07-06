@@ -24,7 +24,7 @@ Eine lokale FastAPI-Webapp als experimentelles Wallet-Frontend für eine private
 
 ```bash
 cp .env.example .env
-docker compose up
+docker compose up -d
 ```
 
 Dann im Browser:
