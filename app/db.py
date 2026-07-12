@@ -12,8 +12,14 @@ def db_path():
 
 
 def conn():
-    c = sqlite3.connect(db_path())
+    # WAL erlaubt gleichzeitige Leser, während der Indexer schreibt.
+    # busy_timeout verhindert sofortige 'database is locked'-Fehler bei kurzen Konflikten.
+    c = sqlite3.connect(db_path(), timeout=30.0, check_same_thread=False)
     c.row_factory = sqlite3.Row
+    c.execute('pragma journal_mode=WAL')
+    c.execute('pragma synchronous=NORMAL')
+    c.execute('pragma busy_timeout=30000')
+    c.execute('pragma foreign_keys=ON')
     return c
 
 
