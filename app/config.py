@@ -12,7 +12,7 @@ class Settings:
     rpc_host = os.getenv('RPC_HOST', '127.0.0.1')
     rpc_port = int(os.getenv('RPC_PORT', '8332'))
     rpc_user = os.getenv('RPC_USER', '')
-    rpc_password = os.getenv('RPC_PASS', '')
+    rpc_password = os.getenv('RPC_PASSWORD', '')
     rpc_timeout = int(os.getenv('RPC_TIMEOUT', '30'))
     sync_start_height = int(os.getenv('SYNC_START_HEIGHT', '0'))
     address_gap_limit = int(os.getenv('ADDRESS_GAP_LIMIT', '20'))

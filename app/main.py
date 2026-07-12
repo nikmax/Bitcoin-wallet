@@ -15,6 +15,7 @@ from .wallet import (
     restore_wallet, next_receive_address, addresses, hidden_address_count, balance, utxos, build_send, spendable_utxos, change_addresses, own_addresses_for_change
 )
 from .sync import sync_to_tip, sync_status, start_background_sync, background_status, stop_background_sync
+from .indexer import index_status, start_indexer, stop_indexer, hydrate_account
 from .rpc import BitcoinRPC
 
 BASE = Path(__file__).resolve().parent
@@ -158,7 +159,7 @@ def dashboard(request: Request):
     try:
         rpc = BitcoinRPC()
         chain = rpc.call('getblockchaininfo')
-        status = sync_status()
+        status = index_status()
     except Exception as e:
         err = str(e)
     return render(request, 'dashboard.html', {'chain': chain, 'balances': balance(a['id']), 'sync': status, 'error': err})
@@ -282,6 +283,40 @@ def sync_status_json(request: Request):
         return JSONResponse(sync_status())
     except Exception as e:
         return JSONResponse({'error': str(e)}, status_code=500)
+
+
+
+@app.post('/indexer/start')
+def indexer_start(request: Request, batch_size: int = Form(100), start_height: str = Form('')):
+    u = require_user(request)
+    if not u:
+        return RedirectResponse('/login', 303)
+    start = int(start_height) if start_height.strip() else None
+    try:
+        start_indexer(batch_size=batch_size, start_height=start)
+    except Exception:
+        pass
+    return RedirectResponse('/sync', 303)
+
+
+@app.post('/indexer/stop')
+def indexer_stop(request: Request):
+    u = require_user(request)
+    if not u:
+        return RedirectResponse('/login', 303)
+    stop_indexer()
+    return RedirectResponse('/sync', 303)
+
+
+@app.get('/indexer/status.json')
+def indexer_status_json(request: Request):
+    u = require_user(request)
+    if not u:
+        return JSONResponse({'error':'not logged in'}, status_code=401)
+    try:
+        return JSONResponse(index_status())
+    except Exception as e:
+        return JSONResponse({'error':str(e)}, status_code=500)
 
 
 @app.get('/send')

@@ -64,7 +64,15 @@ def delete_account(user_id, account_id):
 
 
 def restore_wallet(user_id, mnemonic, name='Importiertes Konto'):
-    return create_account(user_id, name=name, mnemonic=mnemonic)
+    a = create_account(user_id, name=name, mnemonic=mnemonic)
+    ensure_gap(a['id'], 0, max(1, int(settings.address_gap_limit)))
+    ensure_gap(a['id'], 1, max(1, int(settings.address_gap_limit)))
+    try:
+        from .indexer import hydrate_account
+        hydrate_account(a['id'])
+    except Exception:
+        pass
+    return a
 
 
 def ensure_gap(account_id, branch, count):

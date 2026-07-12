@@ -85,6 +85,35 @@ def init_db():
             updated_at integer not null
         );
         insert or ignore into sync_state(id,height,updated_at) values(1, -1, strftime('%s','now'));
+        create table if not exists chain_index_state(
+            id integer primary key check(id=1),
+            height integer not null,
+            updated_at integer not null
+        );
+        insert or ignore into chain_index_state(id,height,updated_at) values(1,-1,strftime('%s','now'));
+        create table if not exists indexed_blocks(
+            height integer primary key,
+            hash text unique not null,
+            block_time integer
+        );
+        create table if not exists chain_outputs(
+            txid text not null,
+            vout integer not null,
+            height integer not null,
+            block_hash text not null,
+            block_time integer,
+            address text,
+            script_hex text not null,
+            amount_sats integer not null,
+            coinbase integer default 0,
+            spent integer default 0,
+            spent_by text,
+            spent_height integer,
+            primary key(txid,vout)
+        );
+        create index if not exists idx_chain_outputs_address on chain_outputs(address);
+        create index if not exists idx_chain_outputs_script on chain_outputs(script_hex);
+        create index if not exists idx_chain_outputs_height on chain_outputs(height);
         """)
         if 'account_id' not in _cols(c, 'addresses'):
             c.execute('alter table addresses add column account_id integer')
